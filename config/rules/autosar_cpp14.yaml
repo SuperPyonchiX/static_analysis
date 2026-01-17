@@ -1,0 +1,186 @@
+# AUTOSAR C++14 Coding Guidelines Rules Database
+# ===============================================
+# Reference: AUTOSAR AP R22-11 Guidelines for the use of the C++14 language
+# https://www.autosar.org/fileadmin/standards/R22-11/AP/AUTOSAR_RS_CPP14Guidelines.pdf
+
+rules:
+  # A0: Language independent issues
+  # --------------------------------
+  A0-1-1:
+    title: "A project shall not contain instances of non-volatile variables being given values that are not subsequently used"
+    category: "Required"
+    rationale: "未使用の変数への代入は不要なコードであり、バグやコード品質問題の兆候である可能性がある"
+    false_positive_hints:
+      - "変数がvolatile修飾されている場合"
+      - "デバッグ目的の変数の場合"
+      - "将来の拡張のために意図的に残されている場合"
+      - "外部APIへの副作用のために必要な場合"
+
+  A0-1-2:
+    title: "The value returned by a function having a non-void return type that is not an overloaded operator shall be used"
+    category: "Required"
+    rationale: "関数の戻り値を無視することは、エラー処理の欠如やバグの兆候である"
+    false_positive_hints:
+      - "戻り値が意図的に無視される場合（static_castで明示）"
+      - "void へのキャストで意図を明示している場合"
+      - "オーバーロードされた演算子の場合"
+
+  A0-1-3:
+    title: "Every function defined in an anonymous namespace, or static function with internal linkage, or private member function shall be used"
+    category: "Required"
+    rationale: "未使用の関数は保守性を低下させ、デッドコードの兆候である"
+    false_positive_hints:
+      - "将来の拡張のために意図的に残されている場合"
+      - "テンプレートのインスタンス化に必要な場合"
+
+  # A5: Expressions
+  # ---------------
+  A5-1-1:
+    title: "Literal values shall not be used apart from type initialization, otherwise symbolic names shall be used instead"
+    category: "Required"
+    rationale: "マジックナンバーは可読性と保守性を低下させる"
+    false_positive_hints:
+      - "0, 1 などの自明な値"
+      - "型初期化での使用"
+      - "配列のインデックスとしての使用（文脈による）"
+      - "ビット演算でのシフト量"
+
+  A5-1-2:
+    title: "Variables shall not be implicitly captured in a lambda expression"
+    category: "Required"
+    rationale: "暗黙的なキャプチャはコードの意図を不明確にし、予期しない動作の原因となる"
+    false_positive_hints:
+      - "短いラムダ式で明示的キャプチャが冗長な場合"
+
+  A5-2-1:
+    title: "dynamic_cast should not be used"
+    category: "Advisory"
+    rationale: "dynamic_castはランタイムオーバーヘッドがあり、設計の問題を示唆する可能性がある"
+    false_positive_hints:
+      - "プラグインシステムなど動的な型チェックが必要な場合"
+      - "レガシーコードとの互換性維持のため"
+
+  A5-2-2:
+    title: "Traditional C-style casts shall not be used"
+    category: "Required"
+    rationale: "C++キャスト演算子（static_cast等）は意図を明確にし、型安全性を向上させる"
+    false_positive_hints:
+      - "Cライブラリとのインターフェース部分"
+
+  # A7: Declarations
+  # ----------------
+  A7-1-1:
+    title: "Constexpr or const specifiers shall be used for immutable data declaration"
+    category: "Required"
+    rationale: "不変データを明示することで最適化と安全性を向上させる"
+    false_positive_hints:
+      - "一度だけ代入されるが、constにできない技術的理由がある場合"
+      - "外部APIとの互換性の問題"
+      - "遅延初期化が必要な場合"
+
+  A7-1-2:
+    title: "The constexpr specifier shall be used for values that can be determined at compile time"
+    category: "Required"
+    rationale: "コンパイル時計算を明示することで、実行時性能と安全性を向上させる"
+    false_positive_hints:
+      - "実行時にのみ決定される値"
+
+  A7-1-5:
+    title: "The auto specifier shall not be used apart from following cases: (1) to declare that a variable has the same type as return type of a function call, (2) to declare that a variable has the same type as initializer of non-fundamental type, (3) to declare parameters of a generic lambda expression, (4) to declare a function template using trailing return type syntax"
+    category: "Required"
+    rationale: "autoの過度な使用は型情報を隠蔽し、コードの可読性を低下させる"
+    false_positive_hints:
+      - "イテレータの宣言"
+      - "複雑なテンプレート型"
+
+  # A8: Declarators
+  # ---------------
+  A8-4-2:
+    title: "All exit paths from a function with non-void return type shall have an explicit return statement with an expression"
+    category: "Required"
+    rationale: "未定義動作を防ぎ、コードの意図を明確にする"
+    false_positive_hints:
+      - "到達不能なコードパス（例：throwの後）"
+      - "無限ループの後"
+      - "[[noreturn]]属性を持つ関数呼び出しの後"
+
+  A8-4-4:
+    title: "Multiple output values from a function should be returned as a struct or tuple"
+    category: "Advisory"
+    rationale: "出力パラメータよりも構造体やタプルの方が意図が明確である"
+    false_positive_hints:
+      - "パフォーマンス上の理由で出力パラメータを使用する場合"
+      - "既存APIとの互換性"
+
+  A8-5-1:
+    title: "In an initialization list, the order of initialization shall be following: (1) virtual base classes, (2) direct base classes, (3) non-static data members"
+    category: "Required"
+    rationale: "初期化順序の不一致は未定義動作につながる可能性がある"
+    false_positive_hints:
+      - "コンパイラ警告で検出されている場合"
+
+  # A12: Special member functions
+  # -----------------------------
+  A12-1-1:
+    title: "Constructors shall explicitly initialize all virtual base classes, all direct non-virtual base classes and all non-static data members"
+    category: "Required"
+    rationale: "暗黙的な初期化は予期しない値を持つ可能性がある"
+    false_positive_hints:
+      - "メンバがデフォルトコンストラクタで適切に初期化される場合"
+
+  A12-8-1:
+    title: "Move and copy constructors shall move and respectively copy base classes and data members of a class, without any side effects"
+    category: "Required"
+    rationale: "コピー/ムーブコンストラクタでの副作用は予期しない動作の原因となる"
+    false_positive_hints:
+      - "ログ出力などの観測可能だが安全な副作用"
+
+  # A13: Overloading
+  # ----------------
+  A13-2-1:
+    title: "An assignment operator shall return a reference to *this"
+    category: "Required"
+    rationale: "代入の連鎖を可能にし、標準的な動作を維持する"
+    false_positive_hints:
+      - "意図的に連鎖を禁止している場合"
+
+  A13-5-1:
+    title: "If overloading operator \"&&\" or operator \"||\" is necessary, define them with non-pointer operands and without side effects"
+    category: "Required"
+    rationale: "論理演算子のオーバーロードは短絡評価を無効にする"
+    false_positive_hints:
+      - "DSL（ドメイン固有言語）の実装"
+
+  # A15: Exception handling
+  # -----------------------
+  A15-1-1:
+    title: "Only instances of types derived from std::exception should be thrown"
+    category: "Advisory"
+    rationale: "標準的な例外階層を使用することで、一貫した例外処理が可能になる"
+    false_positive_hints:
+      - "サードパーティライブラリとの互換性"
+
+  A15-4-1:
+    title: "Dynamic exception-specification shall not be used"
+    category: "Required"
+    rationale: "動的例外仕様はC++17で非推奨、C++20で削除された"
+    false_positive_hints:
+      - "C++11/14との互換性維持"
+
+  # A18: Language support library
+  # -----------------------------
+  A18-1-1:
+    title: "C-style arrays shall not be used"
+    category: "Required"
+    rationale: "std::arrayはサイズ情報を保持し、より安全である"
+    false_positive_hints:
+      - "Cライブラリとのインターフェース"
+      - "定数配列の静的初期化"
+
+  A18-5-1:
+    title: "Functions malloc, calloc, realloc and free shall not be used"
+    category: "Required"
+    rationale: "C++ではnew/deleteまたはスマートポインタを使用すべき"
+    false_positive_hints:
+      - "Cライブラリとのインターフェース"
+      - "カスタムアロケータの実装"

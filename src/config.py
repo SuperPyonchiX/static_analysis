@@ -1,0 +1,187 @@
+"""Configuration management."""
+
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Any
+from pathlib import Path
+import os
+import logging
+
+import yaml
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Config:
+    """Application configuration."""
+
+    # Azure OpenAI settings
+    azure_endpoint: str = ""
+    azure_api_key: str = ""
+    azure_api_version: str = "2024-10-21"
+    deployment_name: str = "gpt-5-mini"
+
+    # Include paths for C++ parsing
+    include_paths: List[str] = field(default_factory=list)
+
+    # Source directories for caller tracking
+    source_directories: List[str] = field(default_factory=list)
+
+    # Additional compiler arguments
+    compiler_args: List[str] = field(default_factory=list)
+
+    # Processing settings
+    confidence_threshold: float = 0.8  # Threshold for Phase 2
+    request_delay: float = 1.0  # Delay between API calls (seconds)
+    max_input_tokens: int = 250000  # Maximum input tokens
+
+    # Rules source configuration
+    rules_source: Dict[str, Any] = field(default_factory=dict)
+
+    # Logging settings
+    log_level: str = "INFO"
+    log_file: Optional[str] = None
+
+    @classmethod
+    def from_yaml(cls, file_path: str) -> "Config":
+        """Load configuration from YAML file.
+
+        Args:
+            file_path: Path to YAML configuration file
+
+        Returns:
+            Config instance
+        """
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+
+        config = cls()
+
+        # Azure settings (environment variables take precedence)
+        config.azure_endpoint = os.getenv(
+            "AZURE_OPENAI_ENDPOINT",
+            data.get("azure_endpoint", "")
+        )
+        config.azure_api_key = os.getenv(
+            "AZURE_OPENAI_API_KEY",
+            data.get("azure_api_key", "")
+        )
+        config.azure_api_version = data.get(
+            "azure_api_version",
+            config.azure_api_version
+        )
+        config.deployment_name = data.get(
+            "deployment_name",
+            config.deployment_name
+        )
+
+        # Path settings
+        config.include_paths = data.get("include_paths", [])
+        config.source_directories = data.get("source_directories", [])
+        config.compiler_args = data.get("compiler_args", [])
+
+        # Processing settings
+        config.confidence_threshold = data.get(
+            "confidence_threshold",
+            config.confidence_threshold
+        )
+        config.request_delay = data.get(
+            "request_delay",
+            config.request_delay
+        )
+        config.max_input_tokens = data.get(
+            "max_input_tokens",
+            config.max_input_tokens
+        )
+
+        # Rules source
+        config.rules_source = data.get("rules_source", {})
+
+        # Logging
+        config.log_level = data.get("log_level", config.log_level)
+        config.log_file = data.get("log_file")
+
+        logger.info(f"Configuration loaded from {file_path}")
+        return config
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Config":
+        """Create configuration from dictionary.
+
+        Args:
+            data: Configuration dictionary
+
+        Returns:
+            Config instance
+        """
+        config = cls()
+
+        for key, value in data.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+
+        return config
+
+    def validate(self) -> List[str]:
+        """Validate configuration.
+
+        Returns:
+            List of validation errors (empty if valid)
+        """
+        errors = []
+
+        if not self.azure_endpoint:
+            errors.append("azure_endpoint is required")
+        if not self.azure_api_key:
+            errors.append("azure_api_key is required")
+
+        # Validate paths exist
+        for path in self.include_paths:
+            if not Path(path).exists():
+                logger.warning(f"Include path does not exist: {path}")
+
+        for path in self.source_directories:
+            if not Path(path).exists():
+                errors.append(f"Source directory does not exist: {path}")
+
+        return errors
+
+    def to_dict(self) -> dict:
+        """Convert configuration to dictionary.
+
+        Returns:
+            Configuration as dictionary
+        """
+        return {
+            "azure_endpoint": self.azure_endpoint,
+            "azure_api_version": self.azure_api_version,
+            "deployment_name": self.deployment_name,
+            "include_paths": self.include_paths,
+            "source_directories": self.source_directories,
+            "compiler_args": self.compiler_args,
+            "confidence_threshold": self.confidence_threshold,
+            "request_delay": self.request_delay,
+            "max_input_tokens": self.max_input_tokens,
+            "rules_source": self.rules_source,
+            "log_level": self.log_level,
+            "log_file": self.log_file,
+        }
+
+    def get_source_files(self) -> List[str]:
+        """Get all source files from source directories.
+
+        Returns:
+            List of source file paths
+        """
+        source_files = []
+
+        for source_dir in self.source_directories:
+            path = Path(source_dir)
+            if path.exists():
+                source_files.extend(str(f) for f in path.rglob("*.cpp"))
+                source_files.extend(str(f) for f in path.rglob("*.cc"))
+                source_files.extend(str(f) for f in path.rglob("*.cxx"))
+                source_files.extend(str(f) for f in path.rglob("*.c"))
+
+        logger.debug(f"Found {len(source_files)} source files")
+        return source_files

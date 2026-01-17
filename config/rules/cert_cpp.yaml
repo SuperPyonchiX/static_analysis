@@ -1,0 +1,229 @@
+# CERT C++ Coding Standard Rules Database
+# ========================================
+# Reference: SEI CERT C++ Coding Standard
+# https://wiki.sei.cmu.edu/confluence/pages/viewpage.action?pageId=88046682
+
+rules:
+  # DCL: Declarations and Initialization
+  # -------------------------------------
+  DCL50-CPP:
+    title: "Do not define a C-style variadic function"
+    category: "Rule"
+    rationale: "C形式の可変長引数関数は型安全でなく、未定義動作を引き起こす可能性がある"
+    false_positive_hints:
+      - "Cライブラリとの互換性のためのラッパー"
+      - "printfスタイルのログ関数（ただし代替を検討すべき）"
+
+  DCL51-CPP:
+    title: "Do not declare or define a reserved identifier"
+    category: "Rule"
+    rationale: "予約済み識別子の使用は未定義動作を引き起こす"
+    false_positive_hints:
+      - "マクロガードでの使用（ただし推奨されない）"
+
+  DCL52-CPP:
+    title: "Never qualify a reference type with const or volatile"
+    category: "Rule"
+    rationale: "参照型へのconst/volatile修飾は意図と異なる効果を持つ"
+    false_positive_hints:
+      - "テンプレートコードでの意図的な使用"
+
+  DCL54-CPP:
+    title: "Overload allocation and deallocation functions as a pair in the same scope"
+    category: "Rule"
+    rationale: "newとdeleteのオーバーロードはペアで行うべき"
+    false_positive_hints:
+      - "placement newのみをオーバーロードする場合"
+
+  DCL58-CPP:
+    title: "Do not modify the standard namespaces"
+    category: "Rule"
+    rationale: "標準名前空間の変更は未定義動作を引き起こす"
+    false_positive_hints:
+      - "特殊化のために許可されているケース"
+
+  DCL59-CPP:
+    title: "Do not define an unnamed namespace in a header file"
+    category: "Rule"
+    rationale: "ヘッダ内の無名名前空間は各翻訳単位で異なるエンティティを生成する"
+    false_positive_hints:
+      - "ヘッダオンリーライブラリでの意図的な使用"
+
+  # EXP: Expressions
+  # ----------------
+  EXP50-CPP:
+    title: "Do not depend on the order of evaluation for side effects"
+    category: "Rule"
+    rationale: "副作用の評価順序は未規定であり、移植性とプログラムの正確性に影響する"
+    false_positive_hints:
+      - "シーケンスポイントで区切られた独立した式"
+
+  EXP51-CPP:
+    title: "Do not delete an array through a pointer of the incorrect type"
+    category: "Rule"
+    rationale: "配列の誤った型でのdeleteは未定義動作"
+    false_positive_hints:
+      - "型が正しいことが証明できる場合"
+
+  EXP53-CPP:
+    title: "Do not read uninitialized memory"
+    category: "Rule"
+    rationale: "未初期化メモリの読み取りは未定義動作"
+    false_positive_hints:
+      - "初期化が保証されている場合"
+      - "memsetで初期化済みの場合"
+
+  EXP55-CPP:
+    title: "Do not access a cv-qualified object through a cv-unqualified type"
+    category: "Rule"
+    rationale: "const/volatile修飾の除去は未定義動作を引き起こす可能性がある"
+    false_positive_hints:
+      - "const_castが安全であることが証明できる場合"
+
+  # INT: Integers
+  # -------------
+  INT50-CPP:
+    title: "Do not cast to an out-of-range enumeration value"
+    category: "Rule"
+    rationale: "範囲外の列挙値へのキャストは未定義動作"
+    false_positive_hints:
+      - "enum classで範囲が保証されている場合"
+
+  # MEM: Memory Management
+  # ----------------------
+  MEM50-CPP:
+    title: "Do not access freed memory"
+    category: "Rule"
+    rationale: "解放済みメモリへのアクセスは未定義動作"
+    false_positive_hints:
+      - "スマートポインタで管理されている場合"
+
+  MEM51-CPP:
+    title: "Properly deallocate dynamically allocated resources"
+    category: "Rule"
+    rationale: "メモリリークはリソース枯渇を引き起こす"
+    false_positive_hints:
+      - "RAIIパターンで管理されている場合"
+      - "スマートポインタ使用時"
+
+  MEM52-CPP:
+    title: "Detect and handle memory allocation errors"
+    category: "Rule"
+    rationale: "メモリ割り当てエラーの無視は予期しない動作を引き起こす"
+    false_positive_hints:
+      - "std::nothrowを使用し、nullチェックしている場合"
+      - "例外をキャッチしている場合"
+
+  MEM53-CPP:
+    title: "Explicitly construct and destruct objects when manually managing object lifetime"
+    category: "Rule"
+    rationale: "手動でのオブジェクト管理には明示的なコンストラクタ/デストラクタ呼び出しが必要"
+    false_positive_hints:
+      - "POD型の場合"
+
+  MEM56-CPP:
+    title: "Do not store an already-owned pointer value in an unrelated smart pointer"
+    category: "Rule"
+    rationale: "同じポインタを複数のスマートポインタが所有すると二重解放となる"
+    false_positive_hints:
+      - "shared_ptrへの移行時"
+
+  # OOP: Object Oriented Programming
+  # --------------------------------
+  OOP50-CPP:
+    title: "Do not invoke virtual functions from constructors or destructors"
+    category: "Rule"
+    rationale: "構築中/破棄中のオブジェクトへの仮想関数呼び出しは期待と異なる動作をする"
+    false_positive_hints:
+      - "final修飾されたクラス"
+      - "意図的な設計の場合"
+
+  OOP51-CPP:
+    title: "Do not slice derived objects"
+    category: "Rule"
+    rationale: "派生クラスのスライシングは情報の損失を引き起こす"
+    false_positive_hints:
+      - "意図的なスライシング"
+
+  OOP52-CPP:
+    title: "Do not delete a polymorphic object without a virtual destructor"
+    category: "Rule"
+    rationale: "仮想デストラクタなしでの多態的オブジェクトのdeleteは未定義動作"
+    false_positive_hints:
+      - "delete対象でないことが保証されている場合"
+
+  OOP55-CPP:
+    title: "Do not use pointer-to-member operators to access nonexistent members"
+    category: "Rule"
+    rationale: "存在しないメンバへのポインタ経由アクセスは未定義動作"
+    false_positive_hints:
+      - "メンバの存在が保証されている場合"
+
+  # CTR: Containers
+  # ---------------
+  CTR50-CPP:
+    title: "Guarantee that container indices and iterators are within the valid range"
+    category: "Rule"
+    rationale: "範囲外アクセスは未定義動作"
+    false_positive_hints:
+      - "境界チェック済みの場合"
+      - "at()を使用している場合"
+
+  CTR51-CPP:
+    title: "Use valid references, pointers, and iterators to reference elements of a container"
+    category: "Rule"
+    rationale: "無効化されたイテレータの使用は未定義動作"
+    false_positive_hints:
+      - "イテレータが無効化されないことが保証されている場合"
+
+  CTR52-CPP:
+    title: "Guarantee that library functions do not overflow"
+    category: "Rule"
+    rationale: "バッファオーバーフローは未定義動作でありセキュリティ脆弱性"
+    false_positive_hints:
+      - "サイズチェック済みの場合"
+
+  # ERR: Errors
+  # -----------
+  ERR50-CPP:
+    title: "Do not abruptly terminate the program"
+    category: "Rule"
+    rationale: "abort/exit等はデストラクタを呼ばずにプログラムを終了する"
+    false_positive_hints:
+      - "致命的エラー時の意図的な終了"
+      - "シグナルハンドラ内"
+
+  ERR51-CPP:
+    title: "Handle all exceptions"
+    category: "Rule"
+    rationale: "未処理の例外はプログラムを終了させる"
+    false_positive_hints:
+      - "main関数でcatch-allしている場合"
+
+  ERR52-CPP:
+    title: "Do not use setjmp() or longjmp()"
+    category: "Rule"
+    rationale: "setjmp/longjmpはスタック巻き戻しを行わず、リソースリークを引き起こす"
+    false_positive_hints:
+      - "Cライブラリとの互換性"
+
+  ERR55-CPP:
+    title: "Honor exception specifications"
+    category: "Rule"
+    rationale: "noexcept関数からの例外はプログラムを終了させる"
+    false_positive_hints:
+      - "例外を投げないことが証明できる場合"
+
+  ERR58-CPP:
+    title: "Handle all exceptions thrown before main() begins executing"
+    category: "Rule"
+    rationale: "静的初期化中の例外はキャッチできない"
+    false_positive_hints:
+      - "constexpr初期化の場合"
+
+  ERR59-CPP:
+    title: "Do not throw an exception across execution boundaries"
+    category: "Rule"
+    rationale: "DLL境界を越える例外は未定義動作"
+    false_positive_hints:
+      - "同一コンパイラ/設定のDLL間"
