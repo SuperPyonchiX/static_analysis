@@ -1,4 +1,4 @@
-"""Context builder for LLM analysis."""
+"""LLM解析用のコンテキストビルダー。"""
 
 from typing import List, Optional, Dict
 import logging
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class ContextBuilder:
-    """Build analysis context for LLM classification."""
+    """LLM分類用の解析コンテキストを構築する。"""
 
     def __init__(
         self,
@@ -22,12 +22,12 @@ class ContextBuilder:
         source_files: List[str],
         rules_db: Optional[Dict[str, RuleInfo]] = None
     ):
-        """Initialize the context builder.
+        """コンテキストビルダーを初期化する。
 
         Args:
-            clang_analyzer: ClangAnalyzer instance
-            source_files: List of project source files
-            rules_db: Optional rules database
+            clang_analyzer: ClangAnalyzerインスタンス
+            source_files: プロジェクトのソースファイルリスト
+            rules_db: 任意のルールデータベース
         """
         self.analyzer = clang_analyzer
         self.source_files = source_files
@@ -45,22 +45,22 @@ class ContextBuilder:
         self,
         finding: Finding
     ) -> Optional[AnalysisContext]:
-        """Build Phase 1 context (target function only).
+        """Phase 1コンテキスト（対象関数のみ）を構築する。
 
         Args:
-            finding: Finding to build context for
+            finding: コンテキストを構築する指摘
 
         Returns:
-            AnalysisContext or None if extraction fails
+            AnalysisContext、抽出失敗時はNone
         """
-        # Extract function containing the finding
+        # 指摘を含む関数を抽出
         func_info = self.function_extractor.extract_function_at_line(
             finding.location.file_path,
             finding.location.line
         )
 
         if func_info is None:
-            # Try to get context lines as fallback
+            # フォールバックとしてコンテキスト行を取得
             func_info, code = self.function_extractor.extract_function_with_context(
                 finding.location.file_path,
                 finding.location.line,
@@ -74,7 +74,7 @@ class ContextBuilder:
                 )
                 return None
 
-        # Get rule info
+        # ルール情報を取得
         rule_info = self._get_rule_info(finding.rule_id)
 
         return AnalysisContext(
@@ -91,26 +91,26 @@ class ContextBuilder:
         max_types: int = 5,
         max_macros: int = 5
     ) -> AnalysisContext:
-        """Build Phase 2 context with additional information.
+        """追加情報を含むPhase 2コンテキストを構築する。
 
         Args:
-            finding: Finding to build context for
-            phase1_context: Context from Phase 1
-            max_callers: Maximum number of callers to include
-            max_types: Maximum number of type definitions
-            max_macros: Maximum number of macro definitions
+            finding: コンテキストを構築する指摘
+            phase1_context: Phase 1からのコンテキスト
+            max_callers: 含める呼び出し元の最大数
+            max_types: 型定義の最大数
+            max_macros: マクロ定義の最大数
 
         Returns:
-            Enhanced AnalysisContext
+            拡張されたAnalysisContext
         """
-        # Create new context with Phase 1 data
+        # Phase 1データで新しいコンテキストを作成
         context = AnalysisContext(
             target_function=phase1_context.target_function,
             finding_line=phase1_context.finding_line,
             rule_info=phase1_context.rule_info
         )
 
-        # Add callers if we have a real function
+        # 実際の関数がある場合は呼び出し元を追加
         if phase1_context.target_function.name != "<context>":
             try:
                 context.caller_functions = self.caller_tracker.find_callers(
@@ -126,7 +126,7 @@ class ContextBuilder:
             except Exception as e:
                 logger.warning(f"Failed to find callers: {e}")
 
-        # Add related types
+        # 関連する型を追加
         try:
             context.related_types = self.symbol_resolver.find_types_in_function(
                 phase1_context.target_function.code,
@@ -137,7 +137,7 @@ class ContextBuilder:
         except Exception as e:
             logger.warning(f"Failed to find types: {e}")
 
-        # Add related macros
+        # 関連するマクロを追加
         try:
             context.related_macros = self.symbol_resolver.find_macros_in_code(
                 phase1_context.target_function.code,
@@ -151,19 +151,19 @@ class ContextBuilder:
         return context
 
     def _get_rule_info(self, rule_id: str) -> Optional[RuleInfo]:
-        """Get rule information from the database.
+        """データベースからルール情報を取得する。
 
         Args:
-            rule_id: Rule ID to look up
+            rule_id: 検索するルールID
 
         Returns:
-            RuleInfo or None if not found
+            RuleInfo、見つからない場合はNone
         """
-        # Try exact match
+        # 完全一致を試す
         if rule_id in self.rules_db:
             return self.rules_db[rule_id]
 
-        # Try normalized ID
+        # 正規化されたIDで試す
         normalized = self._normalize_rule_id(rule_id)
         if normalized in self.rules_db:
             return self.rules_db[normalized]
@@ -171,13 +171,13 @@ class ContextBuilder:
         return None
 
     def _normalize_rule_id(self, rule_id: str) -> str:
-        """Normalize a rule ID.
+        """ルールIDを正規化する。
 
         Args:
-            rule_id: Original rule ID
+            rule_id: 元のルールID
 
         Returns:
-            Normalized rule ID
+            正規化されたルールID
         """
         prefixes = ["AUTOSAR-", "CERT-", "MISRA-", "A-", "M-"]
         normalized = rule_id.upper()
@@ -190,10 +190,10 @@ class ContextBuilder:
         return normalized
 
     def set_rules_db(self, rules_db: Dict[str, RuleInfo]) -> None:
-        """Set the rules database.
+        """ルールデータベースを設定する。
 
         Args:
-            rules_db: Dictionary of rule ID to RuleInfo
+            rules_db: ルールIDからRuleInfoへの辞書
         """
         self.rules_db = rules_db
         logger.info(f"Rules database set with {len(rules_db)} rules")

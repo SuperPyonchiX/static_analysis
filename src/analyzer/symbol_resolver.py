@@ -1,4 +1,4 @@
-"""Symbol resolution for types and macros in C++ source files."""
+"""C++ソースファイルの型およびマクロのシンボル解決。"""
 
 from typing import List, Set, Optional
 import re
@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class SymbolResolver:
-    """Resolve type definitions and macros from C++ source files."""
+    """C++ソースファイルから型定義とマクロを解決する。"""
 
-    # Standard library types to exclude
+    # 除外する標準ライブラリ型
     STD_TYPES: Set[str] = {
         "String", "Vector", "Map", "Set", "List", "Array",
         "int8_t", "int16_t", "int32_t", "int64_t",
@@ -24,7 +24,7 @@ class SymbolResolver:
         "string", "vector", "map", "set", "list", "array",
     }
 
-    # Common macro names to exclude
+    # 除外する一般的なマクロ名
     COMMON_MACROS: Set[str] = {
         "TRUE", "FALSE", "NULL", "EOF", "EXIT_SUCCESS", "EXIT_FAILURE",
         "UINT8_MAX", "UINT16_MAX", "UINT32_MAX", "UINT64_MAX",
@@ -34,10 +34,10 @@ class SymbolResolver:
     }
 
     def __init__(self, clang_analyzer: ClangAnalyzer):
-        """Initialize the symbol resolver.
+        """シンボル解決器を初期化する。
 
         Args:
-            clang_analyzer: ClangAnalyzer instance
+            clang_analyzer: ClangAnalyzerインスタンス
         """
         self.analyzer = clang_analyzer
         self._ci = clang_analyzer.ci
@@ -48,17 +48,17 @@ class SymbolResolver:
         file_path: str,
         max_types: int = 10
     ) -> List[TypeDefinition]:
-        """Find type definitions used in a function.
+        """関数内で使用されている型定義を検索する。
 
         Args:
-            function_code: Function source code
-            file_path: Source file path
-            max_types: Maximum number of types to return
+            function_code: 関数のソースコード
+            file_path: ソースファイルのパス
+            max_types: 返す型の最大数
 
         Returns:
-            List of TypeDefinition objects
+            TypeDefinitionオブジェクトのリスト
         """
-        # Extract type name candidates from code
+        # コードから型名候補を抽出
         type_candidates = self._extract_type_names(function_code)
 
         if not type_candidates:
@@ -93,7 +93,7 @@ class SymbolResolver:
                 cursor.spelling not in found_types and
                 cursor.kind in type_cursor_kinds):
 
-                # Only get definitions
+                # 定義のみを取得
                 if cursor.is_definition():
                     type_def = self._cursor_to_type_definition(cursor)
                     if type_def:
@@ -109,21 +109,21 @@ class SymbolResolver:
         return type_definitions
 
     def _extract_type_names(self, code: str) -> Set[str]:
-        """Extract potential type names from code.
+        """コードから潜在的な型名を抽出する。
 
         Args:
-            code: Source code to analyze
+            code: 解析するソースコード
 
         Returns:
-            Set of potential type names
+            潜在的な型名のセット
         """
-        # Pattern for type names:
-        # - Capital letter followed by alphanumerics/underscores
-        # - lowercase followed by lowercase/digits and ending with _t
+        # 型名のパターン:
+        # - 大文字で始まり英数字/アンダースコアが続く
+        # - 小文字で始まり小文字/数字が続いて_tで終わる
         pattern = r'\b([A-Z][A-Za-z0-9_]*|[a-z][a-z0-9_]*_t)\b'
         matches = re.findall(pattern, code)
 
-        # Filter out standard types
+        # 標準型を除外
         result = {m for m in matches if m not in self.STD_TYPES}
 
         return result
@@ -132,13 +132,13 @@ class SymbolResolver:
         self,
         cursor
     ) -> Optional[TypeDefinition]:
-        """Convert a cursor to TypeDefinition.
+        """カーソルをTypeDefinitionに変換する。
 
         Args:
-            cursor: Type cursor
+            cursor: 型カーソル
 
         Returns:
-            TypeDefinition or None on error
+            TypeDefinition、エラー時はNone
         """
         try:
             extent = cursor.extent
@@ -148,13 +148,13 @@ class SymbolResolver:
 
             file_path = cursor.location.file.name
 
-            # Read type definition code
+            # 型定義コードを読み込む
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
 
             code = "".join(lines[extent.start.line - 1:extent.end.line])
 
-            # Map cursor kind to type kind string
+            # カーソル種別を型種別文字列にマッピング
             CursorKind = self._ci.CursorKind
             kind_map = {
                 CursorKind.CLASS_DECL: "class",
@@ -183,17 +183,17 @@ class SymbolResolver:
         file_path: str,
         max_macros: int = 10
     ) -> List[MacroDefinition]:
-        """Find macro definitions used in code.
+        """コード内で使用されているマクロ定義を検索する。
 
         Args:
-            code: Source code to analyze
-            file_path: Source file path
-            max_macros: Maximum number of macros to return
+            code: 解析するソースコード
+            file_path: ソースファイルのパス
+            max_macros: 返すマクロの最大数
 
         Returns:
-            List of MacroDefinition objects
+            MacroDefinitionオブジェクトのリスト
         """
-        # Extract macro name candidates
+        # マクロ名候補を抽出
         macro_candidates = self._extract_macro_names(code)
 
         if not macro_candidates:
@@ -210,7 +210,7 @@ class SymbolResolver:
 
         CursorKind = self._ci.CursorKind
 
-        # Iterate through macro definitions
+        # マクロ定義を反復処理
         for cursor in tu.cursor.get_children():
             if len(macros) >= max_macros:
                 break
@@ -228,19 +228,19 @@ class SymbolResolver:
         return macros
 
     def _extract_macro_names(self, code: str) -> Set[str]:
-        """Extract potential macro names from code.
+        """コードから潜在的なマクロ名を抽出する。
 
         Args:
-            code: Source code to analyze
+            code: 解析するソースコード
 
         Returns:
-            Set of potential macro names
+            潜在的なマクロ名のセット
         """
-        # Pattern for macro names: uppercase letters and underscores
+        # マクロ名のパターン: 大文字とアンダースコア
         pattern = r'\b([A-Z][A-Z0-9_]+)\b'
         matches = re.findall(pattern, code)
 
-        # Filter out common macros and short names
+        # 一般的なマクロと短い名前を除外
         result = {
             m for m in matches
             if m not in self.COMMON_MACROS and len(m) > 2
@@ -252,23 +252,23 @@ class SymbolResolver:
         self,
         cursor
     ) -> Optional[MacroDefinition]:
-        """Convert a cursor to MacroDefinition.
+        """カーソルをMacroDefinitionに変換する。
 
         Args:
-            cursor: Macro cursor
+            cursor: マクロカーソル
 
         Returns:
-            MacroDefinition or None on error
+            MacroDefinition、エラー時はNone
         """
         try:
             tokens = list(cursor.get_tokens())
             if not tokens:
                 return None
 
-            # Reconstruct definition from tokens
+            # トークンから定義を再構築
             definition = " ".join(t.spelling for t in tokens)
 
-            # Check if function-like macro
+            # 関数形式マクロかどうかをチェック
             is_function_like = len(tokens) > 1 and tokens[1].spelling == "("
 
             file_path = ""
@@ -288,13 +288,13 @@ class SymbolResolver:
             return None
 
     def find_included_headers(self, file_path: str) -> List[str]:
-        """Find all headers included by a file.
+        """ファイルがインクルードしている全ヘッダーを検索する。
 
         Args:
-            file_path: Source file path
+            file_path: ソースファイルのパス
 
         Returns:
-            List of included header paths
+            インクルードされたヘッダーパスのリスト
         """
         try:
             tu = self.analyzer.get_translation_unit(file_path)

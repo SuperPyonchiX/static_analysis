@@ -1,4 +1,4 @@
-"""Response parser for LLM classification results."""
+"""LLM分類結果のレスポンスパーサー。"""
 
 from typing import Optional
 import logging
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 class ResponseParser:
-    """Parse LLM responses into ClassificationResult objects."""
+    """LLMレスポンスをClassificationResultオブジェクトにパースする。"""
 
-    # Mapping from LLM enum to internal enum
+    # LLM列挙から内部列挙へのマッピング
     TYPE_MAPPING = {
         ClassificationTypeEnum.FALSE_POSITIVE: ClassificationType.FALSE_POSITIVE,
         ClassificationTypeEnum.DEVIATION: ClassificationType.DEVIATION,
@@ -26,23 +26,23 @@ class ResponseParser:
         finding_id: str,
         phase: int
     ) -> ClassificationResult:
-        """Parse an LLM response into a ClassificationResult.
+        """LLMレスポンスをClassificationResultにパースする。
 
         Args:
-            response: LLM response object
-            finding_id: ID of the finding being classified
-            phase: Classification phase (1 or 2)
+            response: LLMレスポンスオブジェクト
+            finding_id: 分類対象の指摘ID
+            phase: 分類フェーズ（1または2）
 
         Returns:
-            ClassificationResult object
+            ClassificationResultオブジェクト
         """
-        # Map classification type
+        # 分類タイプをマッピング
         classification_type = self.TYPE_MAPPING.get(
             response.classification,
             ClassificationType.UNDETERMINED
         )
 
-        # Build combined reason
+        # 統合された理由を構築
         reason = self._build_reason(response)
 
         return ClassificationResult(
@@ -56,29 +56,29 @@ class ResponseParser:
         )
 
     def _build_reason(self, response: ClassificationResponse) -> str:
-        """Build a combined reason string from the response.
+        """レスポンスから統合された理由文字列を構築する。
 
         Args:
-            response: LLM response object
+            response: LLMレスポンスオブジェクト
 
         Returns:
-            Combined reason string
+            統合された理由文字列
         """
         parts = []
 
-        # Main reason
+        # メインの理由
         if response.reason:
             parts.append(response.reason)
 
-        # Add rule analysis if different from main reason
+        # メインの理由と異なる場合はルール分析を追加
         if response.rule_analysis and response.rule_analysis != response.reason:
-            # Truncate if too long
+            # 長すぎる場合は切り詰める
             rule_text = response.rule_analysis
             if len(rule_text) > 200:
                 rule_text = rule_text[:197] + "..."
             parts.append(f"[ルール観点] {rule_text}")
 
-        # Add code analysis if different
+        # 異なる場合はコード分析を追加
         if response.code_analysis and response.code_analysis != response.reason:
             code_text = response.code_analysis
             if len(code_text) > 200:
@@ -93,15 +93,15 @@ class ResponseParser:
         error_message: str,
         phase: int
     ) -> ClassificationResult:
-        """Create an error result for failed classification.
+        """分類失敗時のエラー結果を作成する。
 
         Args:
-            finding_id: ID of the finding
-            error_message: Error message
-            phase: Classification phase
+            finding_id: 指摘のID
+            error_message: エラーメッセージ
+            phase: 分類フェーズ
 
         Returns:
-            ClassificationResult with UNDETERMINED classification
+            UNDETERMINED分類のClassificationResult
         """
         return ClassificationResult(
             finding_id=finding_id,
@@ -117,15 +117,15 @@ class ResponseParser:
         skip_reason: str,
         phase: int
     ) -> ClassificationResult:
-        """Create a result for skipped findings.
+        """スキップされた指摘の結果を作成する。
 
         Args:
-            finding_id: ID of the finding
-            skip_reason: Reason for skipping
-            phase: Classification phase
+            finding_id: 指摘のID
+            skip_reason: スキップの理由
+            phase: 分類フェーズ
 
         Returns:
-            ClassificationResult with UNDETERMINED classification
+            UNDETERMINED分類のClassificationResult
         """
         return ClassificationResult(
             finding_id=finding_id,

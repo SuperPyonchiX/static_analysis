@@ -1,4 +1,4 @@
-"""Finding model for static analysis results."""
+"""静的解析結果の指摘情報モデル。"""
 
 from dataclasses import dataclass
 from typing import Optional
@@ -7,7 +7,7 @@ import os
 
 
 class Severity(Enum):
-    """CodeSonar severity levels."""
+    """CodeSonarの重大度レベル。"""
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -17,13 +17,13 @@ class Severity(Enum):
 
 @dataclass
 class SourceLocation:
-    """Source code location information."""
+    """ソースコードの位置情報。"""
     file_path: str
     line: int
     column: Optional[int] = None
 
     def __post_init__(self):
-        # Normalize Windows paths
+        # Windowsパスを正規化
         self.file_path = os.path.normpath(self.file_path)
 
     def __str__(self) -> str:
@@ -34,7 +34,7 @@ class SourceLocation:
 
 @dataclass
 class Finding:
-    """Static analysis finding information."""
+    """静的解析の指摘情報。"""
     id: str
     location: SourceLocation
     rule_id: str
@@ -42,22 +42,22 @@ class Finding:
     severity: Severity
     procedure: Optional[str] = None
 
-    # Additional info populated during processing
+    # 処理中に追加される情報
     function_code: Optional[str] = None
     function_start_line: Optional[int] = None
     function_end_line: Optional[int] = None
 
     @classmethod
     def from_excel_row(cls, row: dict, row_index: int) -> "Finding":
-        """Create a Finding from an Excel row dictionary.
+        """Excel行の辞書からFindingを生成する。
 
         Args:
-            row: Dictionary containing row data with keys:
-                 File, Line, Rule, Message, Severity (optional), Procedure (optional)
-            row_index: Row number in the Excel file (for ID generation)
+            row: 行データを含む辞書。キー: File, Line, Rule, Message,
+                 Severity（任意）, Procedure（任意）
+            row_index: Excelファイル内の行番号（ID生成用）
 
         Returns:
-            Finding instance
+            Findingインスタンス
         """
         return cls(
             id=f"F{row_index:05d}",
@@ -73,13 +73,13 @@ class Finding:
 
     @staticmethod
     def _parse_severity(value) -> Severity:
-        """Parse severity from string or number.
+        """文字列または数値から重大度をパースする。
 
         Args:
-            value: Severity value (string or number)
+            value: 重大度の値（文字列または数値）
 
         Returns:
-            Severity enum value
+            Severity列挙値
         """
         if value is None:
             return Severity.MEDIUM

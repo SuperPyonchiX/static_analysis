@@ -1,4 +1,4 @@
-"""Excel writer for classification results."""
+"""分類結果のExcel出力モジュール。"""
 
 from typing import Dict, List
 from pathlib import Path
@@ -14,17 +14,17 @@ logger = logging.getLogger(__name__)
 
 
 class ExcelWriter:
-    """Write classification results to Excel files."""
+    """分類結果をExcelファイルに書き込む。"""
 
-    # Colors for each classification type (RGB hex without #)
+    # 各分類タイプの色（RGB hex、#なし）
     CLASSIFICATION_COLORS: Dict[ClassificationType, str] = {
-        ClassificationType.FALSE_POSITIVE: "C6EFCE",  # Green - no issue
-        ClassificationType.DEVIATION: "FFEB9C",       # Yellow - needs review
-        ClassificationType.FIX_REQUIRED: "FFC7CE",    # Red - needs fix
-        ClassificationType.UNDETERMINED: "D9D9D9",    # Gray - could not determine
+        ClassificationType.FALSE_POSITIVE: "C6EFCE",  # 緑 - 問題なし
+        ClassificationType.DEVIATION: "FFEB9C",       # 黄 - レビュー必要
+        ClassificationType.FIX_REQUIRED: "FFC7CE",    # 赤 - 修正必要
+        ClassificationType.UNDETERMINED: "D9D9D9",    # 灰 - 判定不可
     }
 
-    # Japanese column headers
+    # 日本語列ヘッダー
     RESULT_HEADERS = ["分類", "分類理由", "確信度", "判定フェーズ"]
 
     def __init__(
@@ -33,12 +33,12 @@ class ExcelWriter:
         output_file: str,
         sheet_name: Optional[str] = None
     ):
-        """Initialize the Excel writer.
+        """Excelライターを初期化する。
 
         Args:
-            input_file: Path to the input Excel file
-            output_file: Path to the output Excel file
-            sheet_name: Name of the sheet to modify (None for active sheet)
+            input_file: 入力Excelファイルのパス
+            output_file: 出力Excelファイルのパス
+            sheet_name: 変更するシート名（Noneの場合はアクティブシート）
         """
         self.input_file = Path(input_file)
         self.output_file = Path(output_file)
@@ -49,26 +49,26 @@ class ExcelWriter:
         results: Dict[str, ClassificationResult],
         finding_id_to_row: Dict[str, int]
     ) -> None:
-        """Write classification results to the Excel file.
+        """分類結果をExcelファイルに書き込む。
 
         Args:
-            results: Mapping of finding ID to classification result
-            finding_id_to_row: Mapping of finding ID to Excel row number
+            results: 指摘IDから分類結果へのマッピング
+            finding_id_to_row: 指摘IDからExcel行番号へのマッピング
         """
-        # Copy input file to output
+        # 入力ファイルを出力先にコピー
         shutil.copy(self.input_file, self.output_file)
 
-        # Open the workbook
+        # ワークブックを開く
         wb = load_workbook(self.output_file)
         ws = wb.active if self.sheet_name is None else wb[self.sheet_name]
 
-        # Find the last column
+        # 最終列を取得
         last_col = ws.max_column
 
-        # Add headers for result columns
+        # 結果列のヘッダーを追加
         self._add_headers(ws, last_col)
 
-        # Write results for each finding
+        # 各指摘の結果を書き込む
         for finding_id, result in results.items():
             if finding_id not in finding_id_to_row:
                 logger.warning(f"Finding {finding_id} not found in row mapping")
@@ -77,19 +77,19 @@ class ExcelWriter:
             row_num = finding_id_to_row[finding_id]
             self._write_result_row(ws, row_num, last_col, result)
 
-        # Adjust column widths
+        # 列幅を調整
         self._adjust_column_widths(ws, last_col)
 
-        # Save the workbook
+        # ワークブックを保存
         wb.save(self.output_file)
         logger.info(f"Results written to {self.output_file}")
 
     def _add_headers(self, ws, last_col: int) -> None:
-        """Add result column headers.
+        """結果列のヘッダーを追加する。
 
         Args:
-            ws: Worksheet object
-            last_col: Last existing column index
+            ws: ワークシートオブジェクト
+            last_col: 既存の最終列インデックス
         """
         header_font = Font(bold=True)
         header_alignment = Alignment(horizontal="center", vertical="center")
@@ -121,13 +121,13 @@ class ExcelWriter:
         last_col: int,
         result: ClassificationResult
     ) -> None:
-        """Write a single result row.
+        """1行分の結果を書き込む。
 
         Args:
-            ws: Worksheet object
-            row_num: Row number to write to
-            last_col: Last existing column index
-            result: Classification result to write
+            ws: ワークシートオブジェクト
+            row_num: 書き込む行番号
+            last_col: 既存の最終列インデックス
+            result: 書き込む分類結果
         """
         thin_border = Border(
             left=Side(style="thin"),
@@ -136,7 +136,7 @@ class ExcelWriter:
             bottom=Side(style="thin")
         )
 
-        # Classification
+        # 分類
         cell_classification = ws.cell(row=row_num, column=last_col + 1)
         cell_classification.value = result.classification.value
         cell_classification.fill = PatternFill(
@@ -147,53 +147,53 @@ class ExcelWriter:
         cell_classification.alignment = Alignment(horizontal="center")
         cell_classification.border = thin_border
 
-        # Reason
+        # 理由
         cell_reason = ws.cell(row=row_num, column=last_col + 2)
         cell_reason.value = result.reason
         cell_reason.alignment = Alignment(wrap_text=True, vertical="top")
         cell_reason.border = thin_border
 
-        # Confidence
+        # 確信度
         cell_confidence = ws.cell(row=row_num, column=last_col + 3)
         cell_confidence.value = f"{result.confidence:.0%}"
         cell_confidence.alignment = Alignment(horizontal="center")
         cell_confidence.border = thin_border
 
-        # Phase
+        # フェーズ
         cell_phase = ws.cell(row=row_num, column=last_col + 4)
         cell_phase.value = result.phase
         cell_phase.alignment = Alignment(horizontal="center")
         cell_phase.border = thin_border
 
     def _adjust_column_widths(self, ws, last_col: int) -> None:
-        """Adjust column widths for result columns.
+        """結果列の列幅を調整する。
 
         Args:
-            ws: Worksheet object
-            last_col: Last existing column index
+            ws: ワークシートオブジェクト
+            last_col: 既存の最終列インデックス
         """
-        widths = [12, 60, 10, 12]  # Widths for each result column
+        widths = [12, 60, 10, 12]  # 各結果列の幅
 
         for i, width in enumerate(widths, 1):
             col_letter = ws.cell(row=1, column=last_col + i).column_letter
             ws.column_dimensions[col_letter].width = width
 
     def write_summary(self, results: List[ClassificationResult]) -> None:
-        """Add a summary sheet with statistics.
+        """統計情報を含むサマリーシートを追加する。
 
         Args:
-            results: List of all classification results
+            results: 全分類結果のリスト
         """
         wb = load_workbook(self.output_file)
 
-        # Remove existing Summary sheet if present
+        # 既存のSummaryシートがあれば削除
         if "Summary" in wb.sheetnames:
             del wb["Summary"]
 
-        # Create new Summary sheet
+        # 新しいSummaryシートを作成
         ws = wb.create_sheet("Summary")
 
-        # Calculate statistics
+        # 統計を計算
         total = len(results)
         counts: Dict[ClassificationType, int] = {
             ClassificationType.FALSE_POSITIVE: 0,
@@ -205,17 +205,17 @@ class ExcelWriter:
         for result in results:
             counts[result.classification] += 1
 
-        # Write title
+        # タイトルを書き込む
         ws["A1"] = "分類結果サマリー"
         ws["A1"].font = Font(bold=True, size=14)
         ws.merge_cells("A1:C1")
 
-        # Write timestamp
+        # タイムスタンプを書き込む
         from datetime import datetime
         ws["A2"] = f"生成日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         ws.merge_cells("A2:C2")
 
-        # Write statistics table
+        # 統計テーブルを書き込む
         headers = ["分類", "件数", "割合"]
         header_font = Font(bold=True)
         thin_border = Border(
@@ -234,7 +234,7 @@ class ExcelWriter:
 
         row = 5
         for classification_type, count in counts.items():
-            # Classification name
+            # 分類名
             cell_type = ws.cell(row=row, column=1)
             cell_type.value = classification_type.value
             cell_type.fill = PatternFill(
@@ -244,13 +244,13 @@ class ExcelWriter:
             )
             cell_type.border = thin_border
 
-            # Count
+            # 件数
             cell_count = ws.cell(row=row, column=2)
             cell_count.value = count
             cell_count.alignment = Alignment(horizontal="right")
             cell_count.border = thin_border
 
-            # Percentage
+            # 割合
             cell_pct = ws.cell(row=row, column=3)
             cell_pct.value = f"{count / total * 100:.1f}%" if total > 0 else "0%"
             cell_pct.alignment = Alignment(horizontal="right")
@@ -258,7 +258,7 @@ class ExcelWriter:
 
             row += 1
 
-        # Total row
+        # 合計行
         cell_total_label = ws.cell(row=row, column=1)
         cell_total_label.value = "合計"
         cell_total_label.font = Font(bold=True)
@@ -276,7 +276,7 @@ class ExcelWriter:
         cell_total_pct.alignment = Alignment(horizontal="right")
         cell_total_pct.border = thin_border
 
-        # Adjust column widths
+        # 列幅を調整
         ws.column_dimensions["A"].width = 15
         ws.column_dimensions["B"].width = 10
         ws.column_dimensions["C"].width = 10
@@ -285,5 +285,5 @@ class ExcelWriter:
         logger.info(f"Summary sheet added to {self.output_file}")
 
 
-# Fix missing import
+# 不足しているインポートを追加
 from typing import Optional

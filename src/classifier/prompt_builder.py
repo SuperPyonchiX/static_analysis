@@ -1,4 +1,4 @@
-"""Prompt builder for LLM classification."""
+"""LLM分類用のプロンプトビルダー。"""
 
 from typing import Optional, Dict
 import logging
@@ -10,21 +10,21 @@ logger = logging.getLogger(__name__)
 
 
 class PromptBuilder:
-    """Build prompts for LLM classification."""
+    """LLM分類用のプロンプトを構築する。"""
 
     def __init__(self, rules_db: Optional[Dict[str, RuleInfo]] = None):
-        """Initialize the prompt builder.
+        """プロンプトビルダーを初期化する。
 
         Args:
-            rules_db: Dictionary of rule ID to RuleInfo
+            rules_db: ルールIDからRuleInfoへの辞書
         """
         self.rules_db = rules_db or {}
 
     def build_system_prompt(self) -> str:
-        """Build the system prompt.
+        """システムプロンプトを構築する。
 
         Returns:
-            System prompt string
+            システムプロンプト文字列
         """
         return """あなたは車載組み込みソフトウェアの静的解析結果を評価する専門家です。
 AUTOSAR C++14 Coding GuidelinesおよびCERT C++ Coding Standardに精通しています。
@@ -69,14 +69,14 @@ AUTOSAR C++14 Coding GuidelinesおよびCERT C++ Coding Standardに精通して�
         finding: Finding,
         context: AnalysisContext
     ) -> str:
-        """Build Phase 1 user prompt.
+        """Phase 1ユーザープロンプトを構築する。
 
         Args:
-            finding: Finding to classify
-            context: Analysis context with function code
+            finding: 分類する指摘
+            context: 関数コードを含む解析コンテキスト
 
         Returns:
-            User prompt string
+            ユーザープロンプト文字列
         """
         rule_info = self._get_rule_info(finding.rule_id, context.rule_info)
 
@@ -119,20 +119,20 @@ AUTOSAR C++14 Coding GuidelinesおよびCERT C++ Coding Standardに精通して�
         finding: Finding,
         context: AnalysisContext
     ) -> str:
-        """Build Phase 2 user prompt with additional context.
+        """追加コンテキストを含むPhase 2ユーザープロンプトを構築する。
 
         Args:
-            finding: Finding to classify
-            context: Analysis context with additional information
+            finding: 分類する指摘
+            context: 追加情報を含む解析コンテキスト
 
         Returns:
-            User prompt string
+            ユーザープロンプト文字列
         """
         rule_info = self._get_rule_info(finding.rule_id, context.rule_info)
 
         relative_line = finding.location.line - context.target_function.start_line + 1
 
-        # Build caller functions section
+        # 呼び出し元関数セクションを構築
         caller_section = ""
         if context.caller_functions:
             caller_section = "\n## 呼び出し元関数\n\n"
@@ -147,7 +147,7 @@ AUTOSAR C++14 Coding GuidelinesおよびCERT C++ Coding Standardに精通して�
 
 """
 
-        # Build type definitions section
+        # 型定義セクションを構築
         type_section = ""
         if context.related_types:
             type_section = "\n## 関連する型定義\n\n"
@@ -161,7 +161,7 @@ AUTOSAR C++14 Coding GuidelinesおよびCERT C++ Coding Standardに精通して�
 
 """
 
-        # Build macro definitions section
+        # マクロ定義セクションを構築
         macro_section = ""
         if context.related_macros:
             macro_section = "\n## 関連するマクロ定義\n\n"
@@ -208,20 +208,20 @@ Phase 1では確信度が低かったため、追加のコンテキスト（呼�
         rule_id: str,
         context_rule_info: Optional[RuleInfo] = None
     ) -> str:
-        """Get rule information as text.
+        """ルール情報をテキストとして取得する。
 
         Args:
-            rule_id: Rule ID to look up
-            context_rule_info: Rule info from context (if available)
+            rule_id: 検索するルールID
+            context_rule_info: コンテキストからのルール情報（利用可能な場合）
 
         Returns:
-            Formatted rule information string
+            フォーマット済みのルール情報文字列
         """
-        # Use context rule info if available
+        # 利用可能な場合はコンテキストのルール情報を使用
         if context_rule_info:
             return context_rule_info.to_prompt_text()
 
-        # Try to find in rules database
+        # ルールデータベースで検索
         normalized_id = self._normalize_rule_id(rule_id)
 
         if rule_id in self.rules_db:
@@ -230,17 +230,17 @@ Phase 1では確信度が低かったため、追加のコンテキスト（呼�
         if normalized_id in self.rules_db:
             return self.rules_db[normalized_id].to_prompt_text()
 
-        # Fallback message
+        # フォールバックメッセージ
         return f"※ルール {rule_id} の詳細情報はデータベースにありません。指摘メッセージを参考に判定してください。"
 
     def _normalize_rule_id(self, rule_id: str) -> str:
-        """Normalize a rule ID.
+        """ルールIDを正規化する。
 
         Args:
-            rule_id: Original rule ID
+            rule_id: 元のルールID
 
         Returns:
-            Normalized rule ID
+            正規化されたルールID
         """
         prefixes = ["AUTOSAR-", "CERT-", "MISRA-", "A-", "M-"]
         normalized = rule_id.upper()
@@ -253,10 +253,10 @@ Phase 1では確信度が低かったため、追加のコンテキスト（呼�
         return normalized
 
     def set_rules_db(self, rules_db: Dict[str, RuleInfo]) -> None:
-        """Set the rules database.
+        """ルールデータベースを設定する。
 
         Args:
-            rules_db: Dictionary of rule ID to RuleInfo
+            rules_db: ルールIDからRuleInfoへの辞書
         """
         self.rules_db = rules_db
         logger.info(f"Rules database set with {len(rules_db)} rules")

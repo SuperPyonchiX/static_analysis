@@ -1,4 +1,4 @@
-"""Tests for CMakeLists.txt parser."""
+"""CMakeLists.txtパーサーのテスト。"""
 
 import json
 import pytest
@@ -9,10 +9,10 @@ from src.io.cmake_parser import CMakeParser, CMakeConfig
 
 
 class TestCMakeConfig:
-    """Tests for CMakeConfig dataclass."""
+    """CMakeConfigデータクラスのテスト。"""
 
     def test_default_values(self):
-        """Test default values."""
+        """デフォルト値のテスト。"""
         config = CMakeConfig()
         assert config.include_paths == []
         assert config.source_directories == []
@@ -22,21 +22,21 @@ class TestCMakeConfig:
 
 
 class TestCMakeParserCompileCommands:
-    """Tests for CMakeParser with compile_commands.json."""
+    """compile_commands.jsonを使用したCMakeParserのテスト。"""
 
     def test_parse_compile_commands_basic(self):
-        """Test parsing basic compile_commands.json."""
+        """基本的なcompile_commands.jsonのパーステスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
             build_dir = project_root / "build"
             build_dir.mkdir()
 
-            # Create test source file
+            # テスト用ソースファイルを作成
             src_dir = project_root / "src"
             src_dir.mkdir()
             (src_dir / "main.cpp").write_text("int main() {}")
 
-            # Create compile_commands.json
+            # compile_commands.jsonを作成
             compile_commands = [
                 {
                     "directory": str(build_dir),
@@ -48,11 +48,11 @@ class TestCMakeParserCompileCommands:
                 json.dumps(compile_commands)
             )
 
-            # Create include directory
+            # インクルードディレクトリを作成
             include_dir = project_root / "include"
             include_dir.mkdir()
 
-            # Parse
+            # パース実行
             parser = CMakeParser(str(project_root))
             config = parser.parse()
 
@@ -61,22 +61,22 @@ class TestCMakeParserCompileCommands:
             assert config.cxx_standard == "c++14"
 
     def test_parse_compile_commands_with_arguments_list(self):
-        """Test parsing compile_commands.json with arguments as list."""
+        """arguments配列形式のcompile_commands.jsonのパーステスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
             build_dir = project_root / "build"
             build_dir.mkdir()
 
-            # Create test source file
+            # テスト用ソースファイルを作成
             src_dir = project_root / "src"
             src_dir.mkdir()
             (src_dir / "main.cpp").write_text("int main() {}")
 
-            # Create include directory
+            # インクルードディレクトリを作成
             include_dir = project_root / "include"
             include_dir.mkdir()
 
-            # Create compile_commands.json with arguments list
+            # arguments配列形式のcompile_commands.jsonを作成
             compile_commands = [
                 {
                     "directory": str(build_dir),
@@ -95,7 +95,7 @@ class TestCMakeParserCompileCommands:
                 json.dumps(compile_commands)
             )
 
-            # Parse
+            # パース実行
             parser = CMakeParser(str(project_root))
             config = parser.parse()
 
@@ -104,11 +104,11 @@ class TestCMakeParserCompileCommands:
             assert config.cxx_standard == "c++17"
 
     def test_find_compile_commands_in_various_locations(self):
-        """Test finding compile_commands.json in various build directories."""
+        """様々なビルドディレクトリでのcompile_commands.json検索テスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
-            # Test cmake-build-debug location
+            # cmake-build-debugディレクトリでテスト
             cmake_build_debug = project_root / "cmake-build-debug"
             cmake_build_debug.mkdir()
 
@@ -125,10 +125,10 @@ class TestCMakeParserCompileCommands:
 
 
 class TestCMakeParserStaticParsing:
-    """Tests for CMakeParser with static CMakeLists.txt parsing."""
+    """CMakeLists.txt静的解析のテスト。"""
 
     def test_parse_cmake_project_name(self):
-        """Test extracting project name from CMakeLists.txt."""
+        """CMakeLists.txtからのプロジェクト名抽出テスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
@@ -144,7 +144,7 @@ project(MyAwesomeProject)
             assert config.project_name == "MyAwesomeProject"
 
     def test_parse_cmake_cxx_standard(self):
-        """Test extracting C++ standard from CMakeLists.txt."""
+        """CMakeLists.txtからのC++標準抽出テスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
@@ -162,11 +162,11 @@ set(CMAKE_CXX_STANDARD 14)
             assert "-std=c++14" in config.compiler_args
 
     def test_parse_cmake_include_directories(self):
-        """Test extracting include_directories from CMakeLists.txt."""
+        """CMakeLists.txtからのinclude_directories抽出テスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
-            # Create directories
+            # ディレクトリを作成
             include_dir = project_root / "include"
             include_dir.mkdir()
             third_party = project_root / "third_party"
@@ -186,11 +186,11 @@ include_directories(include third_party)
             assert str(third_party.resolve()) in config.include_paths
 
     def test_parse_cmake_target_include_directories(self):
-        """Test extracting target_include_directories from CMakeLists.txt."""
+        """CMakeLists.txtからのtarget_include_directories抽出テスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
-            # Create directories
+            # ディレクトリを作成
             include_dir = project_root / "include"
             include_dir.mkdir()
 
@@ -208,11 +208,11 @@ target_include_directories(myapp PUBLIC include)
             assert str(include_dir.resolve()) in config.include_paths
 
     def test_parse_cmake_add_subdirectory(self):
-        """Test extracting add_subdirectory from CMakeLists.txt."""
+        """CMakeLists.txtからのadd_subdirectory抽出テスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
-            # Create subdirectories
+            # サブディレクトリを作成
             src_dir = project_root / "src"
             src_dir.mkdir()
             lib_dir = project_root / "lib"
@@ -233,7 +233,7 @@ add_subdirectory(lib)
             assert str(lib_dir.resolve()) in config.source_directories
 
     def test_parse_cmake_add_compile_definitions(self):
-        """Test extracting add_compile_definitions from CMakeLists.txt."""
+        """CMakeLists.txtからのadd_compile_definitions抽出テスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
@@ -251,11 +251,11 @@ add_compile_definitions(DEBUG AUTOSAR_AP)
             assert "-DAUTOSAR_AP" in config.compiler_args
 
     def test_parse_cmake_variable_expansion(self):
-        """Test CMAKE variable expansion in paths."""
+        """CMAKE変数展開のテスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
-            # Create directories
+            # ディレクトリを作成
             include_dir = project_root / "include"
             include_dir.mkdir()
 
@@ -272,11 +272,11 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
             assert str(include_dir.resolve()) in config.include_paths
 
     def test_parse_cmake_fallback_to_src_directory(self):
-        """Test fallback to src/ directory when no subdirectory is specified."""
+        """サブディレクトリ未指定時のsrc/ディレクトリへのフォールバックテスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
-            # Create src directory
+            # srcディレクトリを作成
             src_dir = project_root / "src"
             src_dir.mkdir()
 
@@ -292,7 +292,7 @@ project(TestProject)
             assert str(src_dir.resolve()) in config.source_directories
 
     def test_parse_cmake_no_cmakelists(self):
-        """Test handling missing CMakeLists.txt."""
+        """CMakeLists.txt未存在時の処理テスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
@@ -305,14 +305,14 @@ project(TestProject)
 
 
 class TestCMakeParserIntegration:
-    """Integration tests for CMakeParser."""
+    """CMakeParserの統合テスト。"""
 
     def test_parse_prioritizes_compile_commands(self):
-        """Test that compile_commands.json is prioritized over CMakeLists.txt."""
+        """compile_commands.jsonがCMakeLists.txtより優先されることのテスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
-            # Create CMakeLists.txt
+            # CMakeLists.txtを作成
             cmake_content = """
 cmake_minimum_required(VERSION 3.14)
 project(TestProject)
@@ -320,7 +320,7 @@ set(CMAKE_CXX_STANDARD 14)
 """
             (project_root / "CMakeLists.txt").write_text(cmake_content)
 
-            # Create build directory with compile_commands.json
+            # compile_commands.json付きのbuildディレクトリを作成
             build_dir = project_root / "build"
             build_dir.mkdir()
 
@@ -342,20 +342,20 @@ set(CMAKE_CXX_STANDARD 14)
             parser = CMakeParser(str(project_root))
             config = parser.parse()
 
-            # Should use C++17 from compile_commands.json, not C++14 from CMakeLists.txt
+            # CMakeLists.txtのC++14ではなく、compile_commands.jsonのC++17が使用されるべき
             assert config.cxx_standard == "c++17"
 
     def test_full_cmake_project_parsing(self):
-        """Test parsing a complete CMake project structure."""
+        """完全なCMakeプロジェクト構造のパーステスト。"""
         with TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
 
-            # Create directory structure
+            # ディレクトリ構造を作成
             (project_root / "include").mkdir()
             (project_root / "src").mkdir()
             (project_root / "lib").mkdir()
 
-            # Create CMakeLists.txt
+            # CMakeLists.txtを作成
             cmake_content = """
 cmake_minimum_required(VERSION 3.14)
 project(AutomotiveApp)
@@ -370,7 +370,7 @@ add_subdirectory(lib)
 """
             (project_root / "CMakeLists.txt").write_text(cmake_content)
 
-            # Parse
+            # パース実行
             parser = CMakeParser(str(project_root))
             config = parser.parse()
 

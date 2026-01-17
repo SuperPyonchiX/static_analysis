@@ -1,4 +1,4 @@
-"""Token optimizer for LLM context."""
+"""LLMコンテキスト用のトークン最適化。"""
 
 from typing import Optional, List
 import logging
@@ -9,44 +9,44 @@ logger = logging.getLogger(__name__)
 
 
 class TokenOptimizer:
-    """Optimize context to fit within token limits."""
+    """トークン制限内に収まるようにコンテキストを最適化する。"""
 
-    # GPT-5-mini token limit with safety margin
+    # GPT-5-miniのトークン制限（安全マージン込み）
     DEFAULT_MAX_TOKENS = 250000
 
-    # Base tokens for system prompt and formatting
+    # システムプロンプトとフォーマット用のベーストークン
     BASE_TOKENS = 2000
 
-    # Average characters per token (Japanese/code mix)
+    # トークンあたりの平均文字数（日本語/コード混在）
     CHARS_PER_TOKEN = 3
 
     def __init__(self, max_tokens: int = DEFAULT_MAX_TOKENS):
-        """Initialize the token optimizer.
+        """トークン最適化器を初期化する。
 
         Args:
-            max_tokens: Maximum input tokens allowed
+            max_tokens: 許容される最大入力トークン数
         """
         self.max_tokens = max_tokens
 
     def optimize_context(self, context: AnalysisContext) -> AnalysisContext:
-        """Optimize context to fit within token limits.
+        """トークン制限内に収まるようにコンテキストを最適化する。
 
         Args:
-            context: Original analysis context
+            context: 元の解析コンテキスト
 
         Returns:
-            Optimized analysis context
+            最適化された解析コンテキスト
         """
         available_tokens = self.max_tokens - self.BASE_TOKENS
 
-        # Calculate budget allocation
-        # Priority: target function > callers > types > macros
+        # バジェット配分を計算
+        # 優先度: 対象関数 > 呼び出し元 > 型 > マクロ
         target_budget = int(available_tokens * 0.6)
         caller_budget = int(available_tokens * 0.25)
         type_budget = int(available_tokens * 0.10)
         macro_budget = int(available_tokens * 0.05)
 
-        # Optimize target function
+        # 対象関数を最適化
         target_tokens = self._estimate_tokens(context.target_function.code)
 
         if target_tokens > target_budget:
@@ -60,20 +60,20 @@ class TokenOptimizer:
             )
             target_tokens = self._estimate_tokens(context.target_function.code)
 
-        # Adjust remaining budgets based on actual target usage
+        # 実際の対象使用量に基づいて残りのバジェットを調整
         remaining = available_tokens - target_tokens
         caller_budget = int(remaining * 0.5)
         type_budget = int(remaining * 0.3)
         macro_budget = int(remaining * 0.2)
 
-        # Optimize callers
+        # 呼び出し元を最適化
         if context.caller_functions:
             context.caller_functions = self._optimize_functions(
                 context.caller_functions,
                 caller_budget
             )
 
-        # Optimize types
+        # 型を最適化
         if context.related_types:
             context.related_types = self._optimize_items(
                 context.related_types,
@@ -81,7 +81,7 @@ class TokenOptimizer:
                 key=lambda t: len(t.code)
             )
 
-        # Optimize macros
+        # マクロを最適化
         if context.related_macros:
             context.related_macros = self._optimize_items(
                 context.related_macros,
@@ -98,13 +98,13 @@ class TokenOptimizer:
         return context
 
     def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count for text.
+        """テキストのトークン数を推定する。
 
         Args:
-            text: Text to estimate
+            text: 推定するテキスト
 
         Returns:
-            Estimated token count
+            推定トークン数
         """
         return len(text) // self.CHARS_PER_TOKEN
 
@@ -114,29 +114,29 @@ class TokenOptimizer:
         focus_line: int,
         max_tokens: int
     ) -> FunctionInfo:
-        """Truncate a function to fit token budget.
+        """トークンバジェットに収まるように関数を切り詰める。
 
-        Keeps the finding line in context.
+        指摘行をコンテキスト内に保持する。
 
         Args:
-            func: Function to truncate
-            focus_line: Line to keep in view
-            max_tokens: Maximum tokens allowed
+            func: 切り詰める関数
+            focus_line: 表示を維持する行
+            max_tokens: 許容される最大トークン数
 
         Returns:
-            Truncated FunctionInfo
+            切り詰められたFunctionInfo
         """
         lines = func.code.split("\n")
         max_chars = max_tokens * self.CHARS_PER_TOKEN
 
-        # Calculate relative line position
+        # 相対的な行位置を計算
         relative_line = focus_line - func.start_line
 
-        # Start from the focus line and expand outward
+        # フォーカス行から外側に展開
         result_lines = []
         current_chars = 0
 
-        # Determine center range
+        # 中心範囲を決定
         center_start = max(0, relative_line - 50)
         center_end = min(len(lines), relative_line + 50)
 
@@ -147,7 +147,7 @@ class TokenOptimizer:
             result_lines.append(line)
             current_chars += len(line) + 1
 
-        # Add truncation markers
+        # 切り詰めマーカーを追加
         if center_start > 0:
             start_marker = (
                 f"// ... (省略: 行 {func.start_line} - "
@@ -181,14 +181,14 @@ class TokenOptimizer:
         functions: List[FunctionInfo],
         budget: int
     ) -> List[FunctionInfo]:
-        """Optimize a list of functions to fit budget.
+        """バジェットに収まるように関数リストを最適化する。
 
         Args:
-            functions: List of functions
-            budget: Token budget
+            functions: 関数のリスト
+            budget: トークンバジェット
 
         Returns:
-            Optimized list of functions
+            最適化された関数リスト
         """
         result = []
         used_tokens = 0
@@ -200,9 +200,9 @@ class TokenOptimizer:
                 result.append(func)
                 used_tokens += tokens
             else:
-                # Try to fit a truncated version
+                # 切り詰めたバージョンを収めてみる
                 remaining = budget - used_tokens
-                if remaining > 100:  # Minimum useful size
+                if remaining > 100:  # 最小有用サイズ
                     truncated = self._truncate_caller(func, remaining)
                     if truncated:
                         result.append(truncated)
@@ -215,14 +215,14 @@ class TokenOptimizer:
         func: FunctionInfo,
         max_tokens: int
     ) -> Optional[FunctionInfo]:
-        """Truncate a caller function.
+        """呼び出し元関数を切り詰める。
 
         Args:
-            func: Function to truncate
-            max_tokens: Maximum tokens
+            func: 切り詰める関数
+            max_tokens: 最大トークン数
 
         Returns:
-            Truncated function or None if too small
+            切り詰められた関数、小さすぎる場合はNone
         """
         if max_tokens < 50:
             return None
@@ -233,7 +233,7 @@ class TokenOptimizer:
         result_lines = []
         current_chars = 0
 
-        # Keep first lines (signature and initial code)
+        # 最初の行を保持（シグネチャと初期コード）
         for line in lines[:30]:
             if current_chars + len(line) + 1 > max_chars:
                 break
@@ -258,19 +258,19 @@ class TokenOptimizer:
         budget: int,
         key
     ) -> list:
-        """Optimize a list of items to fit budget.
+        """バジェットに収まるようにアイテムリストを最適化する。
 
-        Prioritizes smaller items.
+        小さいアイテムを優先する。
 
         Args:
-            items: List of items
-            budget: Token budget
-            key: Function to get size of item
+            items: アイテムのリスト
+            budget: トークンバジェット
+            key: アイテムのサイズを取得する関数
 
         Returns:
-            Optimized list
+            最適化されたリスト
         """
-        # Sort by size (smaller first)
+        # サイズでソート（小さいものが先）
         sorted_items = sorted(items, key=key)
 
         result = []
@@ -290,26 +290,26 @@ class TokenOptimizer:
         system_prompt: str,
         user_prompt: str
     ) -> int:
-        """Estimate total prompt tokens.
+        """プロンプト全体のトークン数を推定する。
 
         Args:
-            system_prompt: System prompt
-            user_prompt: User prompt
+            system_prompt: システムプロンプト
+            user_prompt: ユーザープロンプト
 
         Returns:
-            Estimated token count
+            推定トークン数
         """
         total_chars = len(system_prompt) + len(user_prompt)
         return total_chars // self.CHARS_PER_TOKEN
 
     def will_fit(self, context: AnalysisContext) -> bool:
-        """Check if context will fit within limits.
+        """コンテキストが制限内に収まるかを確認する。
 
         Args:
-            context: Analysis context
+            context: 解析コンテキスト
 
         Returns:
-            True if context fits
+            コンテキストが収まる場合はTrue
         """
         estimated = context.estimate_tokens() + self.BASE_TOKENS
         return estimated <= self.max_tokens

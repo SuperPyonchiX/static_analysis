@@ -1,4 +1,4 @@
-"""C++ source code analyzer using libclang."""
+"""libclangを使用したC++ソースコード解析モジュール。"""
 
 from .clang_analyzer import ClangAnalyzer, ClangParseError
 from .function_extractor import FunctionExtractor

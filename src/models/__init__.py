@@ -1,4 +1,4 @@
-"""Data models for static analysis classification."""
+"""静的解析分類用データモデル。"""
 
 from .finding import Finding, SourceLocation, Severity
 from .classification import ClassificationResult, ClassificationType

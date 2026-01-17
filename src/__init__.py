@@ -1,8 +1,8 @@
 """
-Static Analysis Auto-Classifier
+静的解析結果自動分類ツール
 
-A tool for automatically classifying static analysis findings from CodeSonar
-into categories: False Positive, Deviation, or Fix Required.
+CodeSonarの静的解析指摘を「誤検知」「逸脱」「修正」に
+自動分類するツール。
 """
 
 __version__ = "0.1.0"

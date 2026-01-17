@@ -1,4 +1,4 @@
-"""Configuration management."""
+"""設定管理モジュール。"""
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
@@ -13,51 +13,51 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Config:
-    """Application configuration."""
+    """アプリケーション設定。"""
 
-    # Azure OpenAI settings
+    # Azure OpenAI設定
     azure_endpoint: str = ""
     azure_api_key: str = ""
     azure_api_version: str = "2024-10-21"
     deployment_name: str = "gpt-5-mini"
 
-    # Include paths for C++ parsing
+    # C++パース用インクルードパス
     include_paths: List[str] = field(default_factory=list)
 
-    # Source directories for caller tracking
+    # 呼び出し元追跡用ソースディレクトリ
     source_directories: List[str] = field(default_factory=list)
 
-    # Additional compiler arguments
+    # 追加のコンパイラ引数
     compiler_args: List[str] = field(default_factory=list)
 
-    # Processing settings
-    confidence_threshold: float = 0.8  # Threshold for Phase 2
-    request_delay: float = 1.0  # Delay between API calls (seconds)
-    max_input_tokens: int = 250000  # Maximum input tokens
+    # 処理設定
+    confidence_threshold: float = 0.8  # Phase 2への閾値
+    request_delay: float = 1.0  # API呼び出し間の遅延（秒）
+    max_input_tokens: int = 250000  # 最大入力トークン数
 
-    # Rules source configuration
+    # ルールソース設定
     rules_source: Dict[str, Any] = field(default_factory=dict)
 
-    # Logging settings
+    # ロギング設定
     log_level: str = "INFO"
     log_file: Optional[str] = None
 
     @classmethod
     def from_yaml(cls, file_path: str) -> "Config":
-        """Load configuration from YAML file.
+        """YAMLファイルから設定を読み込む。
 
         Args:
-            file_path: Path to YAML configuration file
+            file_path: YAML設定ファイルのパス
 
         Returns:
-            Config instance
+            Configインスタンス
         """
         with open(file_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 
         config = cls()
 
-        # Azure settings (environment variables take precedence)
+        # Azure設定（環境変数が優先）
         config.azure_endpoint = os.getenv(
             "AZURE_OPENAI_ENDPOINT",
             data.get("azure_endpoint", "")
@@ -75,12 +75,12 @@ class Config:
             config.deployment_name
         )
 
-        # Path settings
+        # パス設定
         config.include_paths = data.get("include_paths", [])
         config.source_directories = data.get("source_directories", [])
         config.compiler_args = data.get("compiler_args", [])
 
-        # Processing settings
+        # 処理設定
         config.confidence_threshold = data.get(
             "confidence_threshold",
             config.confidence_threshold
@@ -94,10 +94,10 @@ class Config:
             config.max_input_tokens
         )
 
-        # Rules source
+        # ルールソース
         config.rules_source = data.get("rules_source", {})
 
-        # Logging
+        # ロギング
         config.log_level = data.get("log_level", config.log_level)
         config.log_file = data.get("log_file")
 
@@ -106,13 +106,13 @@ class Config:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Config":
-        """Create configuration from dictionary.
+        """辞書から設定を作成する。
 
         Args:
-            data: Configuration dictionary
+            data: 設定辞書
 
         Returns:
-            Config instance
+            Configインスタンス
         """
         config = cls()
 
@@ -123,34 +123,34 @@ class Config:
         return config
 
     def validate(self) -> List[str]:
-        """Validate configuration.
+        """設定を検証する。
 
         Returns:
-            List of validation errors (empty if valid)
+            検証エラーのリスト（有効な場合は空）
         """
         errors = []
 
         if not self.azure_endpoint:
-            errors.append("azure_endpoint is required")
+            errors.append("azure_endpointは必須です")
         if not self.azure_api_key:
-            errors.append("azure_api_key is required")
+            errors.append("azure_api_keyは必須です")
 
-        # Validate paths exist
+        # パスの存在を検証
         for path in self.include_paths:
             if not Path(path).exists():
                 logger.warning(f"Include path does not exist: {path}")
 
         for path in self.source_directories:
             if not Path(path).exists():
-                errors.append(f"Source directory does not exist: {path}")
+                errors.append(f"ソースディレクトリが存在しません: {path}")
 
         return errors
 
     def to_dict(self) -> dict:
-        """Convert configuration to dictionary.
+        """設定を辞書に変換する。
 
         Returns:
-            Configuration as dictionary
+            辞書形式の設定
         """
         return {
             "azure_endpoint": self.azure_endpoint,
@@ -168,10 +168,10 @@ class Config:
         }
 
     def get_source_files(self) -> List[str]:
-        """Get all source files from source directories.
+        """ソースディレクトリから全ソースファイルを取得する。
 
         Returns:
-            List of source file paths
+            ソースファイルパスのリスト
         """
         source_files = []
 
@@ -227,7 +227,7 @@ class Config:
         Args:
             file_path: 保存先パス
         """
-        # 保存先ディレクトリが存在しない場合は作成
+        # 出力先ディレクトリが存在しない場合は作成
         output_path = Path(file_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 

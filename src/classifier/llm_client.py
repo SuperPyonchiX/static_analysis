@@ -1,4 +1,4 @@
-"""Azure OpenAI API client for classification."""
+"""分類用Azure OpenAI APIクライアント。"""
 
 from typing import Optional
 from dataclasses import dataclass
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class ClassificationTypeEnum(str, Enum):
-    """Classification type for JSON output."""
+    """JSON出力用の分類タイプ。"""
     FALSE_POSITIVE = "FALSE_POSITIVE"
     DEVIATION = "DEVIATION"
     FIX_REQUIRED = "FIX_REQUIRED"
@@ -21,7 +21,7 @@ class ClassificationTypeEnum(str, Enum):
 
 
 class ClassificationResponse(BaseModel):
-    """Structured output model for classification response."""
+    """分類レスポンス用の構造化出力モデル。"""
 
     classification: ClassificationTypeEnum = Field(
         description="分類結果: FALSE_POSITIVE(誤検知), DEVIATION(逸脱), FIX_REQUIRED(修正), UNDETERMINED(判定不可)"
@@ -44,29 +44,29 @@ class ClassificationResponse(BaseModel):
 
 @dataclass
 class LLMConfig:
-    """Configuration for LLM client."""
+    """LLMクライアントの設定。"""
     azure_endpoint: str
     api_key: str
-    api_version: str = "2024-10-21"  # Structured Outputs support
+    api_version: str = "2024-10-21"  # 構造化出力サポート
     deployment_name: str = "gpt-5-mini"
     max_tokens: int = 4096
-    temperature: float = 0.1  # Low temperature for consistency
-    request_delay: float = 1.0  # Delay between requests (seconds)
+    temperature: float = 0.1  # 一貫性のための低い温度
+    request_delay: float = 1.0  # リクエスト間の遅延（秒）
 
 
 class LLMError(Exception):
-    """Error from LLM API."""
+    """LLM APIからのエラー。"""
     pass
 
 
 class LLMClient:
-    """Azure OpenAI API client for static analysis classification."""
+    """静的解析分類用のAzure OpenAI APIクライアント。"""
 
     def __init__(self, config: LLMConfig):
-        """Initialize the LLM client.
+        """LLMクライアントを初期化する。
 
         Args:
-            config: LLM configuration
+            config: LLM設定
         """
         self.config = config
         self.client = AzureOpenAI(
@@ -86,15 +86,15 @@ class LLMClient:
         user_prompt: str,
         max_retries: int = 3
     ) -> Optional[ClassificationResponse]:
-        """Classify a static analysis finding.
+        """静的解析の指摘を分類する。
 
         Args:
-            system_prompt: System prompt defining the classification task
-            user_prompt: User prompt with code and finding information
-            max_retries: Maximum number of retry attempts
+            system_prompt: 分類タスクを定義するシステムプロンプト
+            user_prompt: コードと指摘情報を含むユーザープロンプト
+            max_retries: 最大リトライ回数
 
         Returns:
-            ClassificationResponse or None on failure
+            ClassificationResponse、失敗時はNone
         """
         self._wait_for_rate_limit()
 
@@ -113,7 +113,7 @@ class LLMClient:
 
                 self._last_request_time = time.time()
 
-                # Get parsed result
+                # パース済み結果を取得
                 parsed = response.choices[0].message.parsed
 
                 if parsed:
@@ -148,17 +148,17 @@ class LLMClient:
         user_prompts: list,
         max_retries: int = 3
     ) -> list:
-        """Classify multiple findings sequentially.
+        """複数の指摘を順次分類する。
 
-        Future enhancement: Can be made async for parallel processing.
+        将来の拡張: 並列処理のためにasync化可能。
 
         Args:
-            system_prompt: System prompt
-            user_prompts: List of user prompts
-            max_retries: Maximum retry attempts per request
+            system_prompt: システムプロンプト
+            user_prompts: ユーザープロンプトのリスト
+            max_retries: リクエストごとの最大リトライ回数
 
         Returns:
-            List of ClassificationResponse or None for each prompt
+            各プロンプトに対するClassificationResponseまたはNoneのリスト
         """
         results = []
 
@@ -175,17 +175,17 @@ class LLMClient:
         return results
 
     def _wait_for_rate_limit(self) -> None:
-        """Wait if needed to respect rate limits."""
+        """レート制限を遵守するために必要に応じて待機する。"""
         elapsed = time.time() - self._last_request_time
         if elapsed < self.config.request_delay:
             sleep_time = self.config.request_delay - elapsed
             time.sleep(sleep_time)
 
     def test_connection(self) -> bool:
-        """Test the API connection.
+        """API接続をテストする。
 
         Returns:
-            True if connection is successful
+            接続成功時はTrue
         """
         try:
             response = self.client.chat.completions.create(

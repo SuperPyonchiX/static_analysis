@@ -1,4 +1,4 @@
-"""Utility modules."""
+"""ユーティリティモジュール。"""
 
 from .logger import setup_logging
 from .retry import retry_with_backoff, retry_api_call

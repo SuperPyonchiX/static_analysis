@@ -1,4 +1,4 @@
-"""Main entry point for static analysis auto-classifier."""
+"""静的解析自動分類ツールのメインエントリーポイント。"""
 
 import argparse
 import sys
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ProcessingStats:
-    """Processing statistics."""
+    """処理統計情報。"""
     total: int = 0
     phase1_resolved: int = 0
     phase2_resolved: int = 0
@@ -35,51 +35,51 @@ class ProcessingStats:
 
 
 class StaticAnalysisClassifier:
-    """Main class for static analysis auto-classification."""
+    """静的解析自動分類のメインクラス。"""
 
     def __init__(self, config: Config):
-        """Initialize the classifier.
+        """分類器を初期化する。
 
         Args:
-            config: Application configuration
+            config: アプリケーション設定
         """
         self.config = config
         self.stats = ProcessingStats()
 
-        # Initialize components
+        # コンポーネントを初期化
         self._init_components()
 
     def _init_components(self) -> None:
-        """Initialize all components."""
-        # Load rules
+        """すべてのコンポーネントを初期化する。"""
+        # ルールを読み込み
         rules_loader = RulesLoader()
         if self.config.rules_source:
             self.rules_db = rules_loader.load(self.config.rules_source)
         else:
             self.rules_db = {}
 
-        # Clang Analyzer
+        # Clang解析器
         self.clang_analyzer = ClangAnalyzer(
             include_paths=self.config.include_paths,
             additional_args=self.config.compiler_args
         )
 
-        # Get source files
+        # ソースファイルを取得
         source_files = self.config.get_source_files()
 
-        # Context Builder
+        # コンテキストビルダー
         self.context_builder = ContextBuilder(
             clang_analyzer=self.clang_analyzer,
             source_files=source_files,
             rules_db=self.rules_db
         )
 
-        # Token Optimizer
+        # トークン最適化器
         self.token_optimizer = TokenOptimizer(
             max_tokens=self.config.max_input_tokens
         )
 
-        # LLM Client
+        # LLMクライアント
         llm_config = LLMConfig(
             azure_endpoint=self.config.azure_endpoint,
             api_key=self.config.azure_api_key,
@@ -89,10 +89,10 @@ class StaticAnalysisClassifier:
         )
         self.llm_client = LLMClient(llm_config)
 
-        # Prompt Builder
+        # プロンプトビルダー
         self.prompt_builder = PromptBuilder(rules_db=self.rules_db)
 
-        # Response Parser
+        # レスポンスパーサー
         self.response_parser = ResponseParser()
 
         logger.info("All components initialized")
@@ -103,29 +103,29 @@ class StaticAnalysisClassifier:
         output_file: str,
         sheet_name: Optional[str] = None
     ) -> None:
-        """Process the static analysis report.
+        """静的解析レポートを処理する。
 
         Args:
-            input_file: Path to input Excel file
-            output_file: Path to output Excel file
-            sheet_name: Optional sheet name to process
+            input_file: 入力Excelファイルへのパス
+            output_file: 出力Excelファイルへのパス
+            sheet_name: 処理するシート名（省略可）
         """
         logger.info(f"Processing started: {input_file}")
 
-        # Read Excel file
+        # Excelファイルを読み込み
         reader = ExcelReader(input_file, sheet_name=sheet_name)
         findings = reader.read()
         self.stats.total = len(findings)
 
         logger.info(f"Loaded {self.stats.total} findings")
 
-        # Create finding ID to row number mapping
+        # 指摘IDから行番号へのマッピングを作成
         finding_id_to_row: Dict[str, int] = {
-            f.id: i + 2  # +2 for header row and 1-indexing
+            f.id: i + 2  # ヘッダー行と1始まりインデックスのため+2
             for i, f in enumerate(findings)
         }
 
-        # Process findings
+        # 指摘を処理
         results: Dict[str, ClassificationResult] = {}
         progress = ProgressLogger(self.stats.total, logger, log_interval=10)
 
@@ -148,27 +148,27 @@ class StaticAnalysisClassifier:
 
             progress.update(finding.id)
 
-        # Write results to Excel
+        # 結果をExcelに書き込み
         writer = ExcelWriter(input_file, output_file, sheet_name)
         writer.write_results(results, finding_id_to_row)
         writer.write_summary(list(results.values()))
 
-        # Log statistics
+        # 統計をログ出力
         self._log_statistics()
         logger.info(f"Processing completed: {output_file}")
 
     def _classify_finding(self, finding: Finding) -> ClassificationResult:
-        """Classify a single finding.
+        """単一の指摘を分類する。
 
         Args:
-            finding: Finding to classify
+            finding: 分類する指摘
 
         Returns:
-            Classification result
+            分類結果
         """
         logger.debug(f"Classifying {finding.id}: {finding.rule_id}")
 
-        # Phase 1: Lightweight classification
+        # Phase 1: 軽量分類
         phase1_context = self.context_builder.build_phase1_context(finding)
 
         if phase1_context is None:
@@ -178,16 +178,16 @@ class StaticAnalysisClassifier:
                 1
             )
 
-        # Optimize context
+        # コンテキストを最適化
         optimized_context = self.token_optimizer.optimize_context(phase1_context)
 
-        # Build prompts
+        # プロンプトを構築
         system_prompt = self.prompt_builder.build_system_prompt()
         user_prompt = self.prompt_builder.build_phase1_prompt(
             finding, optimized_context
         )
 
-        # Call LLM
+        # LLMを呼び出し
         try:
             response = self.llm_client.classify(system_prompt, user_prompt)
         except LLMError as e:
@@ -202,7 +202,7 @@ class StaticAnalysisClassifier:
 
         result = self.response_parser.parse(response, finding.id, phase=1)
 
-        # Check if Phase 1 is sufficient
+        # Phase 1で十分かを確認
         if result.is_high_confidence(self.config.confidence_threshold):
             logger.debug(
                 f"  Phase 1 resolved: {result.classification.value} "
@@ -210,7 +210,7 @@ class StaticAnalysisClassifier:
             )
             return result
 
-        # Phase 2: Additional context
+        # Phase 2: 追加コンテキスト
         logger.debug(
             f"  Phase 1 confidence low ({result.confidence:.0%}), "
             "proceeding to Phase 2"
@@ -221,16 +221,16 @@ class StaticAnalysisClassifier:
         )
         optimized_context2 = self.token_optimizer.optimize_context(phase2_context)
 
-        # Build Phase 2 prompt
+        # Phase 2プロンプトを構築
         user_prompt2 = self.prompt_builder.build_phase2_prompt(
             finding, optimized_context2
         )
 
-        # Call LLM again
+        # 再度LLMを呼び出し
         try:
             response2 = self.llm_client.classify(system_prompt, user_prompt2)
         except LLMError as e:
-            # Return Phase 1 result on Phase 2 failure
+            # Phase 2失敗時はPhase 1結果を返す
             result.phase = 2
             return result
 
@@ -248,7 +248,7 @@ class StaticAnalysisClassifier:
         return result2
 
     def _log_statistics(self) -> None:
-        """Log processing statistics."""
+        """処理統計をログ出力する。"""
         logger.info("=" * 50)
         logger.info("Processing Statistics:")
         logger.info(f"  Total findings: {self.stats.total}")
@@ -260,35 +260,35 @@ class StaticAnalysisClassifier:
 
 
 def main() -> int:
-    """Main entry point.
+    """メインエントリーポイント。
 
     Returns:
-        Exit code
+        終了コード
     """
     parser = argparse.ArgumentParser(
-        description="Static Analysis Result Auto-Classifier"
+        description="静的解析結果自動分類ツール"
     )
     parser.add_argument(
         "-i", "--input",
-        help="Input Excel file (CodeSonar report)"
+        help="入力Excelファイル（CodeSonarレポート）"
     )
     parser.add_argument(
         "-o", "--output",
-        help="Output Excel file"
+        help="出力Excelファイル"
     )
     parser.add_argument(
         "-c", "--config",
         default="config/default_config.yaml",
-        help="Configuration file path"
+        help="設定ファイルパス"
     )
     parser.add_argument(
         "-s", "--sheet",
-        help="Sheet name to process"
+        help="処理するシート名"
     )
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",
-        help="Enable verbose logging"
+        help="詳細ログを有効にする"
     )
     parser.add_argument(
         "--init-config",
@@ -298,42 +298,42 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    # Handle --init-config mode
+    # --init-configモードを処理
     if args.init_config:
         return _init_config_from_cmake(args.init_config, args.config, args.verbose)
 
-    # Normal mode requires input and output
+    # 通常モードでは入力と出力が必要
     if not args.input or not args.output:
-        parser.error("--input and --output are required for classification mode")
+        parser.error("分類モードでは--inputと--outputが必要です")
 
-    # Load configuration
+    # 設定を読み込み
     config_path = Path(args.config)
     if not config_path.exists():
-        print(f"Error: Configuration file not found: {args.config}")
+        print(f"Error: 設定ファイルが見つかりません: {args.config}")
         return 1
 
     config = Config.from_yaml(str(config_path))
 
-    # Override log level if verbose
+    # 詳細ログが指定された場合はログレベルを上書き
     if args.verbose:
         config.log_level = "DEBUG"
 
-    # Set up logging
+    # ロギングをセットアップ
     setup_logging(level=config.log_level, log_file=config.log_file)
 
-    # Validate configuration
+    # 設定を検証
     errors = config.validate()
     if errors:
         for error in errors:
             logger.error(f"Configuration error: {error}")
         return 1
 
-    # Validate input file
+    # 入力ファイルを検証
     if not Path(args.input).exists():
-        logger.error(f"Input file not found: {args.input}")
+        logger.error(f"入力ファイルが見つかりません: {args.input}")
         return 1
 
-    # Run classification
+    # 分類を実行
     try:
         classifier = StaticAnalysisClassifier(config)
         classifier.process(args.input, args.output, args.sheet)
@@ -348,7 +348,7 @@ def _init_config_from_cmake(
     output_config: str,
     verbose: bool
 ) -> int:
-    """CMakeプロジェクトから設定ファイルを生成。
+    """CMakeプロジェクトから設定ファイルを生成する。
 
     Args:
         project_dir: CMakeプロジェクトのルートディレクトリ
@@ -358,20 +358,20 @@ def _init_config_from_cmake(
     Returns:
         終了コード
     """
-    # Set up logging for init mode
+    # 初期化モード用のロギングをセットアップ
     log_level = "DEBUG" if verbose else "INFO"
     setup_logging(level=log_level)
 
     project_path = Path(project_dir)
     if not project_path.exists():
-        print(f"Error: Project directory not found: {project_dir}")
+        print(f"Error: プロジェクトディレクトリが見つかりません: {project_dir}")
         return 1
 
     if not project_path.is_dir():
-        print(f"Error: Not a directory: {project_dir}")
+        print(f"Error: ディレクトリではありません: {project_dir}")
         return 1
 
-    # Check for CMakeLists.txt or compile_commands.json
+    # CMakeLists.txtまたはcompile_commands.jsonを確認
     cmake_file = project_path / "CMakeLists.txt"
     has_cmake = cmake_file.exists()
     has_compile_commands = any([
@@ -383,7 +383,7 @@ def _init_config_from_cmake(
 
     if not has_cmake and not has_compile_commands:
         print(
-            f"Error: No CMakeLists.txt or compile_commands.json found in: "
+            f"Error: CMakeLists.txtまたはcompile_commands.jsonが見つかりません: "
             f"{project_dir}"
         )
         return 1
@@ -394,29 +394,29 @@ def _init_config_from_cmake(
             output_path=output_config
         )
 
-        print(f"Configuration generated successfully: {output_config}")
-        print(f"  Include paths: {len(config.include_paths)}")
-        print(f"  Source directories: {len(config.source_directories)}")
-        print(f"  Compiler args: {len(config.compiler_args)}")
+        print(f"設定ファイルを生成しました: {output_config}")
+        print(f"  インクルードパス: {len(config.include_paths)}")
+        print(f"  ソースディレクトリ: {len(config.source_directories)}")
+        print(f"  コンパイラ引数: {len(config.compiler_args)}")
 
         if config.include_paths:
-            print("\nInclude paths:")
-            for path in config.include_paths[:5]:  # Show first 5
+            print("\nインクルードパス:")
+            for path in config.include_paths[:5]:  # 最初の5件を表示
                 print(f"  - {path}")
             if len(config.include_paths) > 5:
-                print(f"  ... and {len(config.include_paths) - 5} more")
+                print(f"  ... 他 {len(config.include_paths) - 5} 件")
 
         if config.source_directories:
-            print("\nSource directories:")
-            for path in config.source_directories[:5]:  # Show first 5
+            print("\nソースディレクトリ:")
+            for path in config.source_directories[:5]:  # 最初の5件を表示
                 print(f"  - {path}")
             if len(config.source_directories) > 5:
-                print(f"  ... and {len(config.source_directories) - 5} more")
+                print(f"  ... 他 {len(config.source_directories) - 5} 件")
 
         return 0
 
     except Exception as e:
-        print(f"Error generating configuration: {e}")
+        print(f"Error: 設定生成中にエラーが発生しました: {e}")
         if verbose:
             import traceback
             traceback.print_exc()

@@ -1,4 +1,4 @@
-"""Caller tracking for C++ functions using libclang."""
+"""libclangを使用したC++関数の呼び出し元追跡。"""
 
 from typing import List, Set, Optional
 import os
@@ -11,18 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 class CallerTracker:
-    """Track function callers across source files."""
+    """ソースファイル全体で関数の呼び出し元を追跡する。"""
 
     def __init__(
         self,
         clang_analyzer: ClangAnalyzer,
         source_files: List[str]
     ):
-        """Initialize the caller tracker.
+        """呼び出し元追跡器を初期化する。
 
         Args:
-            clang_analyzer: ClangAnalyzer instance
-            source_files: List of source files to search
+            clang_analyzer: ClangAnalyzerインスタンス
+            source_files: 検索対象のソースファイルリスト
         """
         self.analyzer = clang_analyzer
         self.source_files = [os.path.normpath(f) for f in source_files]
@@ -35,16 +35,16 @@ class CallerTracker:
         max_depth: int = 1,
         max_callers: int = 3
     ) -> List[FunctionInfo]:
-        """Find functions that call the specified function.
+        """指定された関数を呼び出す関数を検索する。
 
         Args:
-            function_name: Name of the function to find callers for
-            file_path: File where the function is defined
-            max_depth: Maximum call depth to track (default: 1)
-            max_callers: Maximum number of callers to return
+            function_name: 呼び出し元を検索する関数名
+            file_path: 関数が定義されているファイル
+            max_depth: 追跡する最大呼び出し深度（デフォルト: 1）
+            max_callers: 返す呼び出し元の最大数
 
         Returns:
-            List of FunctionInfo for caller functions
+            呼び出し元関数のFunctionInfoリスト
         """
         callers: List[FunctionInfo] = []
         visited: Set[str] = set()
@@ -71,21 +71,21 @@ class CallerTracker:
         max_depth: int,
         max_callers: int
     ) -> None:
-        """Recursively find callers.
+        """再帰的に呼び出し元を検索する。
 
         Args:
-            function_name: Target function name
-            file_path: Target file path
-            callers: List to append callers to
-            visited: Set of visited function keys
-            current_depth: Current recursion depth
-            max_depth: Maximum depth
-            max_callers: Maximum callers to find
+            function_name: 対象関数名
+            file_path: 対象ファイルパス
+            callers: 呼び出し元を追加するリスト
+            visited: 訪問済み関数キーのセット
+            current_depth: 現在の再帰深度
+            max_depth: 最大深度
+            max_callers: 検索する呼び出し元の最大数
         """
         if current_depth >= max_depth or len(callers) >= max_callers:
             return
 
-        # Search in each source file
+        # 各ソースファイルで検索
         for src_file in self.source_files:
             if len(callers) >= max_callers:
                 break
@@ -113,15 +113,15 @@ class CallerTracker:
         visited: Set[str],
         max_callers: int
     ) -> None:
-        """Search for function calls in a TranslationUnit.
+        """TranslationUnit内で関数呼び出しを検索する。
 
         Args:
-            cursor: Root cursor
-            target_name: Function name to find calls to
-            file_path: Current file path
-            callers: List to append callers to
-            visited: Set of visited function keys
-            max_callers: Maximum callers to find
+            cursor: ルートカーソル
+            target_name: 呼び出しを検索する関数名
+            file_path: 現在のファイルパス
+            callers: 呼び出し元を追加するリスト
+            visited: 訪問済み関数キーのセット
+            max_callers: 検索する呼び出し元の最大数
         """
         CursorKind = self._ci.CursorKind
 
@@ -138,17 +138,17 @@ class CallerTracker:
             if len(callers) >= max_callers:
                 return
 
-            # Skip nodes from other files
+            # 他のファイルのノードをスキップ
             if node.location.file:
                 node_file = os.path.normpath(node.location.file.name)
                 if node_file != os.path.normpath(file_path):
                     return
 
-            # Track enclosing function
+            # 包含する関数を追跡
             if node.kind in function_kinds and node.is_definition():
                 enclosing_func = node
 
-            # Check for function calls
+            # 関数呼び出しをチェック
             if node.kind == CursorKind.CALL_EXPR:
                 called_name = node.spelling
 
@@ -158,7 +158,7 @@ class CallerTracker:
                     if func_key not in visited:
                         visited.add(func_key)
 
-                        # Extract caller function info
+                        # 呼び出し元関数の情報を抽出
                         func_info = self._extract_function_info(
                             enclosing_func, file_path
                         )
@@ -168,7 +168,7 @@ class CallerTracker:
                                 f"Found caller: {func_info.name} -> {target_name}"
                             )
 
-            # Traverse children
+            # 子ノードを走査
             for child in node.get_children():
                 traverse(child, enclosing_func)
 
@@ -179,21 +179,21 @@ class CallerTracker:
         cursor,
         file_path: str
     ) -> Optional[FunctionInfo]:
-        """Extract FunctionInfo from a cursor.
+        """カーソルからFunctionInfoを抽出する。
 
         Args:
-            cursor: Function cursor
-            file_path: Source file path
+            cursor: 関数カーソル
+            file_path: ソースファイルパス
 
         Returns:
-            FunctionInfo or None on error
+            FunctionInfo、エラー時はNone
         """
         try:
             extent = cursor.extent
             start_line = extent.start.line
             end_line = extent.end.line
 
-            # Read source code
+            # ソースコードを読み込む
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
 
@@ -218,15 +218,15 @@ class CallerTracker:
         file_path: str,
         max_depth: int = 3
     ) -> List[List[FunctionInfo]]:
-        """Find call chains leading to a function.
+        """関数に至る呼び出しチェーンを検索する。
 
         Args:
-            function_name: Target function name
-            file_path: File where the function is defined
-            max_depth: Maximum chain depth
+            function_name: 対象関数名
+            file_path: 関数が定義されているファイル
+            max_depth: チェーンの最大深度
 
         Returns:
-            List of call chains (each chain is a list of FunctionInfo)
+            呼び出しチェーンのリスト（各チェーンはFunctionInfoのリスト）
         """
         chains: List[List[FunctionInfo]] = []
         visited: Set[str] = set()
@@ -242,7 +242,7 @@ class CallerTracker:
             callers = self.find_callers(func_name, file_path, max_depth=1, max_callers=5)
 
             if not callers:
-                # End of chain
+                # チェーンの終端
                 if current_chain:
                     chains.append(list(current_chain))
                 return
@@ -255,7 +255,7 @@ class CallerTracker:
                 visited.add(caller_key)
                 current_chain.append(caller)
 
-                # Recursively find callers of this caller
+                # この呼び出し元の呼び出し元を再帰的に検索
                 build_chain(caller.name, current_chain, depth + 1)
 
                 current_chain.pop()

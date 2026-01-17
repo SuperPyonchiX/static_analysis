@@ -1,4 +1,4 @@
-"""Function extraction from C++ source files using libclang."""
+"""libclangを使用したC++ソースファイルからの関数抽出。"""
 
 from typing import Optional, Tuple, Set
 import logging
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 class FunctionExtractor:
-    """Extract function information from C++ source files."""
+    """C++ソースファイルから関数情報を抽出する。"""
 
-    # Cursor kinds that represent function definitions
+    # 関数定義を表すカーソル種別
     FUNCTION_KINDS: Set[str] = {
         "FUNCTION_DECL",
         "CXX_METHOD",
@@ -23,10 +23,10 @@ class FunctionExtractor:
     }
 
     def __init__(self, clang_analyzer: ClangAnalyzer):
-        """Initialize the function extractor.
+        """関数抽出器を初期化する。
 
         Args:
-            clang_analyzer: ClangAnalyzer instance for parsing
+            clang_analyzer: パース用のClangAnalyzerインスタンス
         """
         self.analyzer = clang_analyzer
         self._ci = clang_analyzer.ci
@@ -36,14 +36,14 @@ class FunctionExtractor:
         file_path: str,
         line: int
     ) -> Optional[FunctionInfo]:
-        """Extract the function containing a specific line.
+        """特定の行を含む関数を抽出する。
 
         Args:
-            file_path: Path to the source file
-            line: Target line number (1-indexed)
+            file_path: ソースファイルのパス
+            line: 対象行番号（1始まり）
 
         Returns:
-            FunctionInfo or None if no function found
+            FunctionInfo、関数が見つからない場合はNone
         """
         try:
             tu = self.analyzer.get_translation_unit_full(file_path)
@@ -67,20 +67,20 @@ class FunctionExtractor:
         file_path: str,
         target_line: int
     ):
-        """Find the function cursor that contains the target line.
+        """対象行を含む関数カーソルを検索する。
 
         Args:
-            cursor: Root cursor to search from
-            file_path: Path to the source file
-            target_line: Target line number
+            cursor: 検索開始のルートカーソル
+            file_path: ソースファイルのパス
+            target_line: 対象行番号
 
         Returns:
-            Function cursor or None
+            関数カーソル、またはNone
         """
         result = None
         CursorKind = self._ci.CursorKind
 
-        # Build set of function cursor kinds
+        # 関数カーソル種別のセットを構築
         function_kinds = {
             CursorKind.FUNCTION_DECL,
             CursorKind.CXX_METHOD,
@@ -92,35 +92,35 @@ class FunctionExtractor:
         def traverse(node):
             nonlocal result
 
-            # Skip nodes from other files
+            # 他のファイルのノードをスキップ
             if node.location.file:
                 node_file = node.location.file.name
-                # Normalize paths for comparison
+                # 比較のためにパスを正規化
                 import os
                 if os.path.normpath(node_file) != os.path.normpath(file_path):
                     return
 
-            # Check if this is a function containing the target line
+            # 対象行を含む関数かどうかをチェック
             if node.kind in function_kinds:
                 extent = node.extent
                 if extent.start.line <= target_line <= extent.end.line:
-                    # Check if this is a definition (has a body)
+                    # 定義（本体がある）かどうかをチェック
                     if node.is_definition():
-                        # Look for inner functions (lambdas, nested functions)
+                        # 内部関数（ラムダ、ネストされた関数）を探す
                         inner = self._find_enclosing_function(
                             node, file_path, target_line
                         )
                         result = inner if inner else node
                         return
 
-            # Also check for lambda expressions
+            # ラムダ式もチェック
             if node.kind == CursorKind.LAMBDA_EXPR:
                 extent = node.extent
                 if extent.start.line <= target_line <= extent.end.line:
                     result = node
                     return
 
-            # Traverse children
+            # 子ノードを走査
             for child in node.get_children():
                 traverse(child)
                 if result:
@@ -134,23 +134,23 @@ class FunctionExtractor:
         cursor,
         file_path: str
     ) -> FunctionInfo:
-        """Convert a cursor to FunctionInfo.
+        """カーソルをFunctionInfoに変換する。
 
         Args:
-            cursor: Function cursor
-            file_path: Source file path
+            cursor: 関数カーソル
+            file_path: ソースファイルのパス
 
         Returns:
-            FunctionInfo instance
+            FunctionInfoインスタンス
         """
         extent = cursor.extent
         start_line = extent.start.line
         end_line = extent.end.line
 
-        # Read source code
+        # ソースコードを読み込む
         code = self._read_source_range(file_path, start_line, end_line)
 
-        # Extract parameters
+        # パラメータを抽出
         parameters = []
         CursorKind = self._ci.CursorKind
         for child in cursor.get_children():
@@ -162,7 +162,7 @@ class FunctionExtractor:
                 else:
                     parameters.append(param_type)
 
-        # Get return type
+        # 戻り値の型を取得
         return_type = None
         if hasattr(cursor, "result_type") and cursor.result_type:
             return_type = cursor.result_type.spelling
@@ -184,21 +184,21 @@ class FunctionExtractor:
         start_line: int,
         end_line: int
     ) -> str:
-        """Read source code from a file range.
+        """ファイルの範囲からソースコードを読み込む。
 
         Args:
-            file_path: Path to the source file
-            start_line: Start line (1-indexed)
-            end_line: End line (1-indexed)
+            file_path: ソースファイルのパス
+            start_line: 開始行（1始まり）
+            end_line: 終了行（1始まり）
 
         Returns:
-            Source code string
+            ソースコード文字列
         """
         try:
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
 
-            # Convert to 0-indexed
+            # 0始まりに変換
             selected_lines = lines[start_line - 1:end_line]
             return "".join(selected_lines)
 
@@ -212,24 +212,24 @@ class FunctionExtractor:
         line: int,
         context_lines: int = 20
     ) -> Tuple[Optional[FunctionInfo], str]:
-        """Extract function or fallback to context lines.
+        """関数を抽出するか、見つからない場合はコンテキスト行にフォールバックする。
 
-        If no function is found, returns surrounding lines as context.
+        関数が見つからない場合は、周辺の行をコンテキストとして返す。
 
         Args:
-            file_path: Path to the source file
-            line: Target line number
-            context_lines: Number of context lines if no function found
+            file_path: ソースファイルのパス
+            line: 対象行番号
+            context_lines: 関数が見つからない場合のコンテキスト行数
 
         Returns:
-            Tuple of (FunctionInfo or None, context code)
+            (FunctionInfoまたはNone, コンテキストコード)のタプル
         """
         func_info = self.extract_function_at_line(file_path, line)
 
         if func_info:
             return func_info, func_info.code
 
-        # No function found, read context lines
+        # 関数が見つからない場合、コンテキスト行を読み込む
         try:
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
@@ -239,7 +239,7 @@ class FunctionExtractor:
 
             context_code = "".join(lines[start:end])
 
-            # Create a pseudo FunctionInfo for context
+            # コンテキスト用の疑似FunctionInfoを作成
             pseudo_func = FunctionInfo(
                 name="<context>",
                 file_path=file_path,
@@ -255,13 +255,13 @@ class FunctionExtractor:
             return None, ""
 
     def get_all_functions(self, file_path: str) -> list:
-        """Get all function definitions in a file.
+        """ファイル内の全関数定義を取得する。
 
         Args:
-            file_path: Path to the source file
+            file_path: ソースファイルのパス
 
         Returns:
-            List of FunctionInfo for all functions
+            全関数のFunctionInfoリスト
         """
         try:
             tu = self.analyzer.get_translation_unit_full(file_path)
@@ -281,7 +281,7 @@ class FunctionExtractor:
 
         def traverse(node):
             import os
-            # Skip nodes from other files
+            # 他のファイルのノードをスキップ
             if node.location.file:
                 node_file = node.location.file.name
                 if os.path.normpath(node_file) != os.path.normpath(file_path):

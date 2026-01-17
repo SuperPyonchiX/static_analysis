@@ -1,1 +1,1 @@
-"""Test package for static analysis classifier."""
+"""静的解析分類ツールのテストパッケージ。"""

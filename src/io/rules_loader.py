@@ -1,4 +1,4 @@
-"""Rules database loader for AUTOSAR/CERT C++ rules."""
+"""AUTOSAR/CERT C++ルールのデータベースローダー。"""
 
 from typing import Dict, List, Optional, Any
 from pathlib import Path
@@ -13,24 +13,24 @@ logger = logging.getLogger(__name__)
 
 
 class RulesLoader:
-    """Load rules from various sources (Excel, CSV, YAML)."""
+    """各種ソース（Excel, CSV, YAML）からルールを読み込む。"""
 
     def __init__(self):
-        """Initialize the rules loader."""
+        """ルールローダーを初期化する。"""
         self._rules: Dict[str, RuleInfo] = {}
 
     def load(self, config: dict) -> Dict[str, RuleInfo]:
-        """Load rules based on configuration.
+        """設定に基づいてルールを読み込む。
 
         Args:
-            config: Rules source configuration with keys:
-                - type: "excel", "csv", or "yaml"
-                - path: Path to the rules file
-                - sheet: Sheet name for Excel (optional)
-                - columns: Column mapping (optional)
+            config: ルールソース設定（キー:
+                - type: "excel", "csv", または "yaml"
+                - path: ルールファイルのパス
+                - sheet: Excelのシート名（任意）
+                - columns: 列マッピング（任意））
 
         Returns:
-            Dictionary mapping rule ID to RuleInfo
+            ルールIDからRuleInfoへの辞書
         """
         source_type = config.get("type", "yaml").lower()
         path = config.get("path")
@@ -66,19 +66,19 @@ class RulesLoader:
         sheet: Optional[str] = None,
         columns: Optional[Dict[str, str]] = None
     ) -> Dict[str, RuleInfo]:
-        """Load rules from an Excel file.
+        """Excelファイルからルールを読み込む。
 
         Args:
-            path: Path to the Excel file
-            sheet: Sheet name (None for first sheet)
-            columns: Column name mapping
+            path: Excelファイルのパス
+            sheet: シート名（Noneの場合は最初のシート）
+            columns: 列名マッピング
 
         Returns:
-            Dictionary mapping rule ID to RuleInfo
+            ルールIDからRuleInfoへの辞書
         """
         columns = columns or {}
 
-        # Default column mappings
+        # デフォルトの列マッピング
         col_rule_id = columns.get("rule_id", "Rule ID")
         col_title = columns.get("title", "Title")
         col_category = columns.get("category", "Category")
@@ -94,7 +94,7 @@ class RulesLoader:
                 if not rule_id:
                     continue
 
-                # Parse hints (may be semicolon or newline separated)
+                # ヒントをパース（セミコロンまたは改行区切りの可能性あり）
                 hints_raw = row.get(col_hints, "")
                 hints = self._parse_hints(hints_raw)
 
@@ -107,7 +107,7 @@ class RulesLoader:
                 )
 
                 rules[rule_id] = rule_info
-                # Also store with normalized ID
+                # 正規化されたIDでも保存
                 normalized_id = self._normalize_rule_id(rule_id)
                 if normalized_id != rule_id:
                     rules[normalized_id] = rule_info
@@ -124,15 +124,15 @@ class RulesLoader:
         columns: Optional[Dict[str, str]] = None,
         encoding: str = "utf-8"
     ) -> Dict[str, RuleInfo]:
-        """Load rules from a CSV file.
+        """CSVファイルからルールを読み込む。
 
         Args:
-            path: Path to the CSV file
-            columns: Column name mapping
-            encoding: File encoding
+            path: CSVファイルのパス
+            columns: 列名マッピング
+            encoding: ファイルエンコーディング
 
         Returns:
-            Dictionary mapping rule ID to RuleInfo
+            ルールIDからRuleInfoへの辞書
         """
         columns = columns or {}
 
@@ -173,25 +173,25 @@ class RulesLoader:
         return rules
 
     def load_from_yaml(self, path: str) -> Dict[str, RuleInfo]:
-        """Load rules from a YAML file.
+        """YAMLファイルからルールを読み込む。
 
-        Expected YAML format:
+        想定されるYAML形式:
         ```yaml
         rules:
           A5-1-1:
-            title: "Rule title"
+            title: "ルールタイトル"
             category: "Required"
-            rationale: "Why this rule exists"
+            rationale: "このルールの根拠"
             false_positive_hints:
-              - "Hint 1"
-              - "Hint 2"
+              - "ヒント1"
+              - "ヒント2"
         ```
 
         Args:
-            path: Path to the YAML file
+            path: YAMLファイルのパス
 
         Returns:
-            Dictionary mapping rule ID to RuleInfo
+            ルールIDからRuleInfoへの辞書
         """
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
@@ -227,13 +227,13 @@ class RulesLoader:
         return rules
 
     def _parse_hints(self, hints_raw: Any) -> List[str]:
-        """Parse hints from various formats.
+        """各種形式からヒントをパースする。
 
         Args:
-            hints_raw: Raw hints value (string, list, or None)
+            hints_raw: 生のヒント値（文字列、リスト、またはNone）
 
         Returns:
-            List of hint strings
+            ヒント文字列のリスト
         """
         if hints_raw is None or (isinstance(hints_raw, float) and pd.isna(hints_raw)):
             return []
@@ -243,13 +243,13 @@ class RulesLoader:
 
         hints_str = str(hints_raw)
 
-        # Try newline separator first
+        # まず改行区切りを試す
         if "\n" in hints_str:
             hints = [h.strip() for h in hints_str.split("\n")]
-        # Then try semicolon
+        # 次にセミコロンを試す
         elif ";" in hints_str:
             hints = [h.strip() for h in hints_str.split(";")]
-        # Finally comma
+        # 最後にカンマを試す
         elif "," in hints_str:
             hints = [h.strip() for h in hints_str.split(",")]
         else:
@@ -258,13 +258,13 @@ class RulesLoader:
         return [h for h in hints if h]
 
     def _normalize_rule_id(self, rule_id: str) -> str:
-        """Normalize a rule ID by removing common prefixes.
+        """一般的なプレフィックスを除去してルールIDを正規化する。
 
         Args:
-            rule_id: Original rule ID
+            rule_id: 元のルールID
 
         Returns:
-            Normalized rule ID
+            正規化されたルールID
         """
         prefixes = ["AUTOSAR-", "CERT-", "MISRA-", "A-", "M-"]
         normalized = rule_id.upper()
@@ -277,31 +277,31 @@ class RulesLoader:
         return normalized
 
     def get_rule(self, rule_id: str) -> Optional[RuleInfo]:
-        """Get rule info by ID.
+        """IDでルール情報を取得する。
 
         Args:
-            rule_id: Rule ID to look up
+            rule_id: 検索するルールID
 
         Returns:
-            RuleInfo or None if not found
+            RuleInfo、見つからない場合はNone
         """
-        # Try exact match first
+        # まず完全一致を試す
         if rule_id in self._rules:
             return self._rules[rule_id]
 
-        # Try normalized ID
+        # 正規化されたIDで試す
         normalized = self._normalize_rule_id(rule_id)
         return self._rules.get(normalized)
 
     def merge_rules(self, new_rules: Dict[str, RuleInfo]) -> None:
-        """Merge new rules into the existing rules.
+        """新しいルールを既存のルールにマージする。
 
         Args:
-            new_rules: Rules to merge
+            new_rules: マージするルール
         """
         self._rules.update(new_rules)
 
     @property
     def rules(self) -> Dict[str, RuleInfo]:
-        """Get all loaded rules."""
+        """読み込み済みの全ルールを取得する。"""
         return self._rules

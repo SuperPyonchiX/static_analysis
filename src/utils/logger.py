@@ -1,4 +1,4 @@
-"""Logging configuration."""
+"""ロギング設定モジュール。"""
 
 import logging
 import sys
@@ -12,42 +12,42 @@ def setup_logging(
     log_file: Optional[str] = None,
     format_string: Optional[str] = None
 ) -> logging.Logger:
-    """Set up logging configuration.
+    """ロギング設定をセットアップする。
 
     Args:
-        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        log_file: Optional path to log file
-        format_string: Optional custom format string
+        level: ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
+        log_file: ログファイルへのパス（省略可）
+        format_string: カスタムフォーマット文字列（省略可）
 
     Returns:
-        Root logger
+        ルートロガー
     """
-    # Default format
+    # デフォルトフォーマット
     if format_string is None:
         format_string = (
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
 
-    # Convert level string to logging level
+    # レベル文字列をロギングレベルに変換
     log_level = getattr(logging, level.upper(), logging.INFO)
 
-    # Create formatter
+    # フォーマッターを作成
     formatter = logging.Formatter(format_string)
 
-    # Configure root logger
+    # ルートロガーを設定
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
 
-    # Remove existing handlers
+    # 既存のハンドラーを削除
     root_logger.handlers.clear()
 
-    # Console handler
+    # コンソールハンドラー
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    # File handler if specified
+    # ファイルハンドラー（指定された場合）
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -64,20 +64,20 @@ def setup_logging(
 
 
 def get_log_filename(prefix: str = "static_analysis") -> str:
-    """Generate a timestamped log filename.
+    """タイムスタンプ付きのログファイル名を生成する。
 
     Args:
-        prefix: Prefix for the log filename
+        prefix: ログファイル名のプレフィックス
 
     Returns:
-        Log filename with timestamp
+        タイムスタンプ付きのログファイル名
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{prefix}_{timestamp}.log"
 
 
 class ProgressLogger:
-    """Helper class for logging progress."""
+    """進捗ログ出力用のヘルパークラス。"""
 
     def __init__(
         self,
@@ -85,12 +85,12 @@ class ProgressLogger:
         logger: Optional[logging.Logger] = None,
         log_interval: int = 10
     ):
-        """Initialize progress logger.
+        """進捗ロガーを初期化する。
 
         Args:
-            total: Total number of items
-            logger: Logger to use
-            log_interval: Interval for progress updates
+            total: アイテムの総数
+            logger: 使用するロガー
+            log_interval: 進捗更新の間隔
         """
         self.total = total
         self.current = 0
@@ -98,10 +98,10 @@ class ProgressLogger:
         self.log_interval = log_interval
 
     def update(self, message: Optional[str] = None) -> None:
-        """Update progress.
+        """進捗を更新する。
 
         Args:
-            message: Optional message to include
+            message: 含めるメッセージ（省略可）
         """
         self.current += 1
         progress = self.current / self.total * 100
@@ -113,9 +113,9 @@ class ProgressLogger:
             self.logger.info(msg)
 
     def complete(self, message: str = "Complete") -> None:
-        """Mark progress as complete.
+        """進捗を完了としてマークする。
 
         Args:
-            message: Completion message
+            message: 完了メッセージ
         """
         self.logger.info(f"{message}: {self.total} items processed")

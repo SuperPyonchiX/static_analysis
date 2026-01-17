@@ -1,4 +1,4 @@
-"""Retry utilities with exponential backoff."""
+"""指数バックオフ付きリトライユーティリティ。"""
 
 import time
 import functools
@@ -16,18 +16,18 @@ def retry_with_backoff(
     exceptions: Tuple[Type[Exception], ...] = (Exception,),
     on_retry: Optional[Callable[[Exception, int], None]] = None
 ):
-    """Decorator for retry with exponential backoff.
+    """指数バックオフ付きリトライのデコレーター。
 
     Args:
-        max_retries: Maximum number of retry attempts
-        base_delay: Base delay between retries (seconds)
-        max_delay: Maximum delay between retries (seconds)
-        exponential_base: Base for exponential backoff
-        exceptions: Tuple of exception types to catch
-        on_retry: Optional callback called on each retry
+        max_retries: 最大リトライ回数
+        base_delay: リトライ間の基本遅延（秒）
+        max_delay: リトライ間の最大遅延（秒）
+        exponential_base: 指数バックオフの底
+        exceptions: キャッチする例外タイプのタプル
+        on_retry: 各リトライ時に呼び出されるコールバック（省略可）
 
     Returns:
-        Decorated function
+        デコレートされた関数
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
@@ -47,7 +47,7 @@ def retry_with_backoff(
                         )
                         raise
 
-                    # Calculate delay with exponential backoff
+                    # 指数バックオフで遅延を計算
                     delay = min(
                         base_delay * (exponential_base ** attempt),
                         max_delay
@@ -70,16 +70,16 @@ def retry_with_backoff(
 
 
 def retry_api_call(max_retries: int = 3, base_delay: float = 2.0):
-    """Decorator for retrying API calls.
+    """API呼び出しリトライ用のデコレーター。
 
-    Handles common OpenAI API errors.
+    一般的なOpenAI APIエラーを処理する。
 
     Args:
-        max_retries: Maximum retry attempts
-        base_delay: Base delay between retries
+        max_retries: 最大リトライ回数
+        base_delay: リトライ間の基本遅延
 
     Returns:
-        Decorated function
+        デコレートされた関数
     """
     try:
         from openai import RateLimitError, APIError, APIConnectionError
@@ -100,48 +100,48 @@ def retry_api_call(max_retries: int = 3, base_delay: float = 2.0):
 
 
 class RetryState:
-    """State tracker for retry operations."""
+    """リトライ操作の状態トラッカー。"""
 
     def __init__(self, max_retries: int = 3):
-        """Initialize retry state.
+        """リトライ状態を初期化する。
 
         Args:
-            max_retries: Maximum retry attempts
+            max_retries: 最大リトライ回数
         """
         self.max_retries = max_retries
         self.attempt = 0
         self.last_error: Optional[Exception] = None
 
     def should_retry(self) -> bool:
-        """Check if should retry.
+        """リトライすべきかを確認する。
 
         Returns:
-            True if more retries available
+            さらにリトライ可能な場合はTrue
         """
         return self.attempt < self.max_retries
 
     def record_attempt(self, error: Optional[Exception] = None) -> None:
-        """Record an attempt.
+        """試行を記録する。
 
         Args:
-            error: Error from the attempt (if any)
+            error: 試行中のエラー（もしあれば）
         """
         self.attempt += 1
         if error:
             self.last_error = error
 
     def get_delay(self, base_delay: float = 1.0) -> float:
-        """Get delay for next retry.
+        """次のリトライまでの遅延を取得する。
 
         Args:
-            base_delay: Base delay
+            base_delay: 基本遅延
 
         Returns:
-            Delay in seconds
+            遅延（秒）
         """
         return min(base_delay * (2 ** (self.attempt - 1)), 60.0)
 
     def reset(self) -> None:
-        """Reset the retry state."""
+        """リトライ状態をリセットする。"""
         self.attempt = 0
         self.last_error = None
