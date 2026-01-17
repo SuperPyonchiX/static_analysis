@@ -1,0 +1,384 @@
+"""Tests for CMakeLists.txt parser."""
+
+import json
+import pytest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from src.io.cmake_parser import CMakeParser, CMakeConfig
+
+
+class TestCMakeConfig:
+    """Tests for CMakeConfig dataclass."""
+
+    def test_default_values(self):
+        """Test default values."""
+        config = CMakeConfig()
+        assert config.include_paths == []
+        assert config.source_directories == []
+        assert config.compiler_args == []
+        assert config.cxx_standard is None
+        assert config.project_name is None
+
+
+class TestCMakeParserCompileCommands:
+    """Tests for CMakeParser with compile_commands.json."""
+
+    def test_parse_compile_commands_basic(self):
+        """Test parsing basic compile_commands.json."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+            build_dir = project_root / "build"
+            build_dir.mkdir()
+
+            # Create test source file
+            src_dir = project_root / "src"
+            src_dir.mkdir()
+            (src_dir / "main.cpp").write_text("int main() {}")
+
+            # Create compile_commands.json
+            compile_commands = [
+                {
+                    "directory": str(build_dir),
+                    "command": f"g++ -I{project_root}/include -DDEBUG -std=c++14 -c {src_dir}/main.cpp",
+                    "file": str(src_dir / "main.cpp")
+                }
+            ]
+            (build_dir / "compile_commands.json").write_text(
+                json.dumps(compile_commands)
+            )
+
+            # Create include directory
+            include_dir = project_root / "include"
+            include_dir.mkdir()
+
+            # Parse
+            parser = CMakeParser(str(project_root))
+            config = parser.parse()
+
+            assert str(include_dir.resolve()) in config.include_paths
+            assert "-DDEBUG" in config.compiler_args
+            assert config.cxx_standard == "c++14"
+
+    def test_parse_compile_commands_with_arguments_list(self):
+        """Test parsing compile_commands.json with arguments as list."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+            build_dir = project_root / "build"
+            build_dir.mkdir()
+
+            # Create test source file
+            src_dir = project_root / "src"
+            src_dir.mkdir()
+            (src_dir / "main.cpp").write_text("int main() {}")
+
+            # Create include directory
+            include_dir = project_root / "include"
+            include_dir.mkdir()
+
+            # Create compile_commands.json with arguments list
+            compile_commands = [
+                {
+                    "directory": str(build_dir),
+                    "arguments": [
+                        "g++",
+                        f"-I{include_dir}",
+                        "-DTEST_DEFINE",
+                        "-std=c++17",
+                        "-c",
+                        str(src_dir / "main.cpp")
+                    ],
+                    "file": str(src_dir / "main.cpp")
+                }
+            ]
+            (build_dir / "compile_commands.json").write_text(
+                json.dumps(compile_commands)
+            )
+
+            # Parse
+            parser = CMakeParser(str(project_root))
+            config = parser.parse()
+
+            assert str(include_dir.resolve()) in config.include_paths
+            assert "-DTEST_DEFINE" in config.compiler_args
+            assert config.cxx_standard == "c++17"
+
+    def test_find_compile_commands_in_various_locations(self):
+        """Test finding compile_commands.json in various build directories."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Test cmake-build-debug location
+            cmake_build_debug = project_root / "cmake-build-debug"
+            cmake_build_debug.mkdir()
+
+            compile_commands = [{"directory": str(cmake_build_debug), "command": "g++ -c test.cpp", "file": "test.cpp"}]
+            (cmake_build_debug / "compile_commands.json").write_text(
+                json.dumps(compile_commands)
+            )
+
+            parser = CMakeParser(str(project_root))
+            found = parser._find_compile_commands()
+
+            assert found is not None
+            assert "cmake-build-debug" in str(found)
+
+
+class TestCMakeParserStaticParsing:
+    """Tests for CMakeParser with static CMakeLists.txt parsing."""
+
+    def test_parse_cmake_project_name(self):
+        """Test extracting project name from CMakeLists.txt."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            cmake_content = """
+cmake_minimum_required(VERSION 3.14)
+project(MyAwesomeProject)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert config.project_name == "MyAwesomeProject"
+
+    def test_parse_cmake_cxx_standard(self):
+        """Test extracting C++ standard from CMakeLists.txt."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            cmake_content = """
+cmake_minimum_required(VERSION 3.14)
+project(TestProject)
+set(CMAKE_CXX_STANDARD 14)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert config.cxx_standard == "c++14"
+            assert "-std=c++14" in config.compiler_args
+
+    def test_parse_cmake_include_directories(self):
+        """Test extracting include_directories from CMakeLists.txt."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create directories
+            include_dir = project_root / "include"
+            include_dir.mkdir()
+            third_party = project_root / "third_party"
+            third_party.mkdir()
+
+            cmake_content = f"""
+cmake_minimum_required(VERSION 3.14)
+project(TestProject)
+include_directories(include third_party)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert str(include_dir.resolve()) in config.include_paths
+            assert str(third_party.resolve()) in config.include_paths
+
+    def test_parse_cmake_target_include_directories(self):
+        """Test extracting target_include_directories from CMakeLists.txt."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create directories
+            include_dir = project_root / "include"
+            include_dir.mkdir()
+
+            cmake_content = f"""
+cmake_minimum_required(VERSION 3.14)
+project(TestProject)
+add_executable(myapp main.cpp)
+target_include_directories(myapp PUBLIC include)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert str(include_dir.resolve()) in config.include_paths
+
+    def test_parse_cmake_add_subdirectory(self):
+        """Test extracting add_subdirectory from CMakeLists.txt."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create subdirectories
+            src_dir = project_root / "src"
+            src_dir.mkdir()
+            lib_dir = project_root / "lib"
+            lib_dir.mkdir()
+
+            cmake_content = """
+cmake_minimum_required(VERSION 3.14)
+project(TestProject)
+add_subdirectory(src)
+add_subdirectory(lib)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert str(src_dir.resolve()) in config.source_directories
+            assert str(lib_dir.resolve()) in config.source_directories
+
+    def test_parse_cmake_add_compile_definitions(self):
+        """Test extracting add_compile_definitions from CMakeLists.txt."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            cmake_content = """
+cmake_minimum_required(VERSION 3.14)
+project(TestProject)
+add_compile_definitions(DEBUG AUTOSAR_AP)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert "-DDEBUG" in config.compiler_args
+            assert "-DAUTOSAR_AP" in config.compiler_args
+
+    def test_parse_cmake_variable_expansion(self):
+        """Test CMAKE variable expansion in paths."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create directories
+            include_dir = project_root / "include"
+            include_dir.mkdir()
+
+            cmake_content = """
+cmake_minimum_required(VERSION 3.14)
+project(TestProject)
+include_directories(${CMAKE_SOURCE_DIR}/include)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert str(include_dir.resolve()) in config.include_paths
+
+    def test_parse_cmake_fallback_to_src_directory(self):
+        """Test fallback to src/ directory when no subdirectory is specified."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create src directory
+            src_dir = project_root / "src"
+            src_dir.mkdir()
+
+            cmake_content = """
+cmake_minimum_required(VERSION 3.14)
+project(TestProject)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert str(src_dir.resolve()) in config.source_directories
+
+    def test_parse_cmake_no_cmakelists(self):
+        """Test handling missing CMakeLists.txt."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            parser = CMakeParser(str(project_root))
+            config = parser._parse_cmake_files()
+
+            assert config.include_paths == []
+            assert config.source_directories == []
+            assert config.compiler_args == []
+
+
+class TestCMakeParserIntegration:
+    """Integration tests for CMakeParser."""
+
+    def test_parse_prioritizes_compile_commands(self):
+        """Test that compile_commands.json is prioritized over CMakeLists.txt."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create CMakeLists.txt
+            cmake_content = """
+cmake_minimum_required(VERSION 3.14)
+project(TestProject)
+set(CMAKE_CXX_STANDARD 14)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            # Create build directory with compile_commands.json
+            build_dir = project_root / "build"
+            build_dir.mkdir()
+
+            src_dir = project_root / "src"
+            src_dir.mkdir()
+            (src_dir / "main.cpp").write_text("int main() {}")
+
+            compile_commands = [
+                {
+                    "directory": str(build_dir),
+                    "command": "g++ -std=c++17 -c " + str(src_dir / "main.cpp"),
+                    "file": str(src_dir / "main.cpp")
+                }
+            ]
+            (build_dir / "compile_commands.json").write_text(
+                json.dumps(compile_commands)
+            )
+
+            parser = CMakeParser(str(project_root))
+            config = parser.parse()
+
+            # Should use C++17 from compile_commands.json, not C++14 from CMakeLists.txt
+            assert config.cxx_standard == "c++17"
+
+    def test_full_cmake_project_parsing(self):
+        """Test parsing a complete CMake project structure."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+
+            # Create directory structure
+            (project_root / "include").mkdir()
+            (project_root / "src").mkdir()
+            (project_root / "lib").mkdir()
+
+            # Create CMakeLists.txt
+            cmake_content = """
+cmake_minimum_required(VERSION 3.14)
+project(AutomotiveApp)
+
+set(CMAKE_CXX_STANDARD 14)
+
+include_directories(include)
+add_compile_definitions(AUTOSAR_AP DEBUG)
+
+add_subdirectory(src)
+add_subdirectory(lib)
+"""
+            (project_root / "CMakeLists.txt").write_text(cmake_content)
+
+            # Parse
+            parser = CMakeParser(str(project_root))
+            config = parser.parse()
+
+            assert config.project_name == "AutomotiveApp"
+            assert config.cxx_standard == "c++14"
+            assert str((project_root / "include").resolve()) in config.include_paths
+            assert str((project_root / "src").resolve()) in config.source_directories
+            assert str((project_root / "lib").resolve()) in config.source_directories
+            assert "-DAUTOSAR_AP" in config.compiler_args
+            assert "-DDEBUG" in config.compiler_args
+            assert "-std=c++14" in config.compiler_args

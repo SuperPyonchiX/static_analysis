@@ -189,15 +189,35 @@ static_analysis/
 ```bash
 python -m src.main [オプション]
 
-必須:
+分類モード（通常使用）:
   -i, --input   入力Excelファイル（CodeSonarレポート）
   -o, --output  出力Excelファイル
-
-オプション:
   -c, --config  設定ファイルパス（デフォルト: config/default_config.yaml）
   -s, --sheet   処理するシート名
   -v, --verbose 詳細ログを出力
+
+設定自動生成モード:
+  --init-config PROJECT_DIR  CMakeプロジェクトから設定ファイルを自動生成
 ```
+
+### 設定ファイルの自動生成
+
+CMakeプロジェクトから設定ファイルを自動生成できます。
+
+```bash
+# CMakeプロジェクトから設定を自動生成
+python -m src.main --init-config /path/to/cmake/project
+
+# 出力先を指定
+python -m src.main --init-config /path/to/cmake/project -c config/my_config.yaml
+
+# 詳細ログを表示
+python -m src.main --init-config /path/to/cmake/project -v
+```
+
+この機能は以下の情報を自動抽出します：
+- **compile_commands.json** がある場合（優先）：インクルードパス、コンパイル定義、C++標準
+- **CMakeLists.txt** から：`include_directories`、`add_subdirectory`、`add_compile_definitions`、`CMAKE_CXX_STANDARD`
 
 ## 開発
 

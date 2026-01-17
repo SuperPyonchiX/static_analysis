@@ -185,3 +185,74 @@ class Config:
 
         logger.debug(f"Found {len(source_files)} source files")
         return source_files
+
+    @classmethod
+    def from_cmake_project(
+        cls,
+        project_root: str,
+        output_path: Optional[str] = None
+    ) -> "Config":
+        """CMakeプロジェクトから設定を自動生成。
+
+        CMakeLists.txt または compile_commands.json を解析して、
+        C++解析に必要な設定（インクルードパス、ソースディレクトリ、
+        コンパイラフラグ）を抽出する。
+
+        Args:
+            project_root: CMakeプロジェクトのルートディレクトリ
+            output_path: 生成した設定を保存するパス（省略時は保存しない）
+
+        Returns:
+            Config: 自動生成された設定
+        """
+        from .io.cmake_parser import CMakeParser
+
+        parser = CMakeParser(project_root)
+        cmake_config = parser.parse()
+
+        config = cls()
+        config.include_paths = cmake_config.include_paths
+        config.source_directories = cmake_config.source_directories
+        config.compiler_args = cmake_config.compiler_args
+
+        if output_path:
+            config.save_yaml(output_path)
+            logger.info(f"Configuration saved to {output_path}")
+
+        return config
+
+    def save_yaml(self, file_path: str) -> None:
+        """設定をYAMLファイルに保存。
+
+        Args:
+            file_path: 保存先パス
+        """
+        # 保存先ディレクトリが存在しない場合は作成
+        output_path = Path(file_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        data: Dict[str, Any] = {
+            "azure_api_version": self.azure_api_version,
+            "deployment_name": self.deployment_name,
+            "include_paths": self.include_paths,
+            "source_directories": self.source_directories,
+            "compiler_args": self.compiler_args,
+            "confidence_threshold": self.confidence_threshold,
+            "request_delay": self.request_delay,
+            "max_input_tokens": self.max_input_tokens,
+            "rules_source": self.rules_source,
+            "log_level": self.log_level,
+        }
+        if self.log_file:
+            data["log_file"] = self.log_file
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            yaml.dump(
+                data,
+                f,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False
+            )
+
+        logger.info(f"Configuration saved to {file_path}")

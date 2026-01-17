@@ -270,12 +270,10 @@ def main() -> int:
     )
     parser.add_argument(
         "-i", "--input",
-        required=True,
         help="Input Excel file (CodeSonar report)"
     )
     parser.add_argument(
         "-o", "--output",
-        required=True,
         help="Output Excel file"
     )
     parser.add_argument(
@@ -292,8 +290,21 @@ def main() -> int:
         action="store_true",
         help="Enable verbose logging"
     )
+    parser.add_argument(
+        "--init-config",
+        metavar="PROJECT_DIR",
+        help="CMakeプロジェクトから設定ファイルを自動生成"
+    )
 
     args = parser.parse_args()
+
+    # Handle --init-config mode
+    if args.init_config:
+        return _init_config_from_cmake(args.init_config, args.config, args.verbose)
+
+    # Normal mode requires input and output
+    if not args.input or not args.output:
+        parser.error("--input and --output are required for classification mode")
 
     # Load configuration
     config_path = Path(args.config)
@@ -329,6 +340,86 @@ def main() -> int:
         return 0
     except Exception as e:
         logger.exception(f"Fatal error: {e}")
+        return 1
+
+
+def _init_config_from_cmake(
+    project_dir: str,
+    output_config: str,
+    verbose: bool
+) -> int:
+    """CMakeプロジェクトから設定ファイルを生成。
+
+    Args:
+        project_dir: CMakeプロジェクトのルートディレクトリ
+        output_config: 出力設定ファイルパス
+        verbose: 詳細ログを有効にするかどうか
+
+    Returns:
+        終了コード
+    """
+    # Set up logging for init mode
+    log_level = "DEBUG" if verbose else "INFO"
+    setup_logging(level=log_level)
+
+    project_path = Path(project_dir)
+    if not project_path.exists():
+        print(f"Error: Project directory not found: {project_dir}")
+        return 1
+
+    if not project_path.is_dir():
+        print(f"Error: Not a directory: {project_dir}")
+        return 1
+
+    # Check for CMakeLists.txt or compile_commands.json
+    cmake_file = project_path / "CMakeLists.txt"
+    has_cmake = cmake_file.exists()
+    has_compile_commands = any([
+        (project_path / "build" / "compile_commands.json").exists(),
+        (project_path / "cmake-build-debug" / "compile_commands.json").exists(),
+        (project_path / "cmake-build-release" / "compile_commands.json").exists(),
+        (project_path / "compile_commands.json").exists(),
+    ])
+
+    if not has_cmake and not has_compile_commands:
+        print(
+            f"Error: No CMakeLists.txt or compile_commands.json found in: "
+            f"{project_dir}"
+        )
+        return 1
+
+    try:
+        config = Config.from_cmake_project(
+            str(project_path),
+            output_path=output_config
+        )
+
+        print(f"Configuration generated successfully: {output_config}")
+        print(f"  Include paths: {len(config.include_paths)}")
+        print(f"  Source directories: {len(config.source_directories)}")
+        print(f"  Compiler args: {len(config.compiler_args)}")
+
+        if config.include_paths:
+            print("\nInclude paths:")
+            for path in config.include_paths[:5]:  # Show first 5
+                print(f"  - {path}")
+            if len(config.include_paths) > 5:
+                print(f"  ... and {len(config.include_paths) - 5} more")
+
+        if config.source_directories:
+            print("\nSource directories:")
+            for path in config.source_directories[:5]:  # Show first 5
+                print(f"  - {path}")
+            if len(config.source_directories) > 5:
+                print(f"  ... and {len(config.source_directories) - 5} more")
+
+        return 0
+
+    except Exception as e:
+        print(f"Error generating configuration: {e}")
+        if verbose:
+            import traceback
+            traceback.print_exc()
         return 1
 
 
