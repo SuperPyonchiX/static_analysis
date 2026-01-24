@@ -62,6 +62,16 @@ rules_source:
   #   category: "Category"
   #   rationale: "Rationale"
   #   hints: "False Positive Hints"
+  #
+  # ルールDB形式（日本語列名）の例:
+  # type: "excel"
+  # path: "path/to/rules_db.xlsx"
+  # sheet: "Sheet1"
+  # columns:
+  #   rule_id: "class"      # A列: Warning Class名（指摘ExcelのWarning Classとマッチング）
+  #   title: "内容"         # B列: ルール説明
+  #   rationale: "内容"     # B列（titleと同じ列を使用）
+  #   hints: "判定"         # C列: 判定指針（改行/セミコロン区切りで複数条件）
 
 # Logging Settings
 # ----------------

@@ -78,12 +78,12 @@ class RulesLoader:
         """
         columns = columns or {}
 
-        # デフォルトの列マッピング
-        col_rule_id = columns.get("rule_id", "Rule ID")
-        col_title = columns.get("title", "Title")
+        # デフォルトの列マッピング（日本語列名対応）
+        col_rule_id = columns.get("rule_id", "class")
+        col_title = columns.get("title", "内容")
         col_category = columns.get("category", "Category")
-        col_rationale = columns.get("rationale", "Rationale")
-        col_hints = columns.get("hints", "False Positive Hints")
+        col_rationale = columns.get("rationale", "内容")
+        col_hints = columns.get("hints", "判定")
 
         df = pd.read_excel(path, sheet_name=sheet or 0)
 
@@ -136,11 +136,12 @@ class RulesLoader:
         """
         columns = columns or {}
 
-        col_rule_id = columns.get("rule_id", "Rule ID")
-        col_title = columns.get("title", "Title")
+        # デフォルトの列マッピング（日本語列名対応）
+        col_rule_id = columns.get("rule_id", "class")
+        col_title = columns.get("title", "内容")
         col_category = columns.get("category", "Category")
-        col_rationale = columns.get("rationale", "Rationale")
-        col_hints = columns.get("hints", "False Positive Hints")
+        col_rationale = columns.get("rationale", "内容")
+        col_hints = columns.get("hints", "判定")
 
         df = pd.read_csv(path, encoding=encoding)
 

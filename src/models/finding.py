@@ -47,6 +47,10 @@ class Finding:
     function_start_line: Optional[int] = None
     function_end_line: Optional[int] = None
 
+    # 新形式Excel用の追加フィールド
+    original_id: Optional[str] = None  # Excel上の元ID（「id」列）
+    line_content: Optional[str] = None  # 指摘行の内容（「line content」列）
+
     @classmethod
     def from_excel_row(cls, row: dict, row_index: int) -> "Finding":
         """Excel行の辞書からFindingを生成する。
@@ -68,7 +72,9 @@ class Finding:
             rule_id=str(row["Rule"]),
             message=str(row["Message"]),
             severity=cls._parse_severity(row.get("Severity", row.get("Priority", "medium"))),
-            procedure=row.get("Procedure", row.get("Function"))
+            procedure=row.get("Procedure", row.get("Function")),
+            original_id=row.get("OriginalId"),
+            line_content=row.get("LineContent")
         )
 
     @staticmethod

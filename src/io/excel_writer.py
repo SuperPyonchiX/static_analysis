@@ -1,6 +1,6 @@
 """分類結果のExcel出力モジュール。"""
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 from pathlib import Path
 import shutil
 import logging
@@ -24,7 +24,13 @@ class ExcelWriter:
         ClassificationType.UNDETERMINED: "D9D9D9",    # 灰 - 判定不可
     }
 
-    # 日本語列ヘッダー
+    # 出力先列名のマッピング（優先順位順）
+    OUTPUT_COLUMNS: Dict[str, List[str]] = {
+        "classification": ["対応方針", "分類", "Classification"],
+        "reason": ["判断理由", "分類理由", "理由", "Reason"],
+    }
+
+    # 日本語列ヘッダー（フォールバック用）
     RESULT_HEADERS = ["分類", "分類理由", "確信度", "判定フェーズ"]
 
     def __init__(
@@ -51,6 +57,9 @@ class ExcelWriter:
     ) -> None:
         """分類結果をExcelファイルに書き込む。
 
+        既存の「対応方針」「判断理由」列に書き込む。
+        列が存在しない場合は末尾に新規作成する。
+
         Args:
             results: 指摘IDから分類結果へのマッピング
             finding_id_to_row: 指摘IDからExcel行番号へのマッピング
@@ -62,11 +71,11 @@ class ExcelWriter:
         wb = load_workbook(self.output_file)
         ws = wb.active if self.sheet_name is None else wb[self.sheet_name]
 
-        # 最終列を取得
-        last_col = ws.max_column
+        # 出力先列を検索または作成
+        classification_col = self._find_or_create_column(ws, "classification")
+        reason_col = self._find_or_create_column(ws, "reason")
 
-        # 結果列のヘッダーを追加
-        self._add_headers(ws, last_col)
+        logger.debug(f"分類列: {classification_col}, 理由列: {reason_col}")
 
         # 各指摘の結果を書き込む
         for finding_id, result in results.items():
@@ -75,14 +84,95 @@ class ExcelWriter:
                 continue
 
             row_num = finding_id_to_row[finding_id]
-            self._write_result_row(ws, row_num, last_col, result)
+            self._write_result_to_existing_columns(
+                ws, row_num, classification_col, reason_col, result
+            )
 
-        # 列幅を調整
-        self._adjust_column_widths(ws, last_col)
+        # 列幅を調整（新規作成した列のみ）
+        self._adjust_output_column_widths(ws, classification_col, reason_col)
 
         # ワークブックを保存
         wb.save(self.output_file)
         logger.info(f"Results written to {self.output_file}")
+
+    def _find_or_create_column(self, ws, column_type: str) -> int:
+        """出力先列を検索し、なければ作成する。
+
+        Args:
+            ws: ワークシートオブジェクト
+            column_type: "classification" または "reason"
+
+        Returns:
+            列番号（1始まり）
+        """
+        column_names = self.OUTPUT_COLUMNS[column_type]
+
+        # ヘッダー行から列名を検索
+        for col in range(1, ws.max_column + 1):
+            header_value = ws.cell(row=1, column=col).value
+            if header_value in column_names:
+                logger.debug(f"列 '{column_type}' を発見: 列{col} ('{header_value}')")
+                return col
+
+        # 見つからない場合は末尾に追加
+        new_col = ws.max_column + 1
+        default_name = column_names[0]  # デフォルト名を使用
+        ws.cell(row=1, column=new_col).value = default_name
+        logger.info(f"列 '{default_name}' を新規作成: 列{new_col}")
+        return new_col
+
+    def _write_result_to_existing_columns(
+        self,
+        ws,
+        row_num: int,
+        classification_col: int,
+        reason_col: int,
+        result: ClassificationResult
+    ) -> None:
+        """既存列に結果を書き込む。
+
+        Args:
+            ws: ワークシートオブジェクト
+            row_num: 書き込む行番号
+            classification_col: 分類列の列番号
+            reason_col: 理由列の列番号
+            result: 書き込む分類結果
+        """
+        # 分類結果（対応方針）
+        cell_classification = ws.cell(row=row_num, column=classification_col)
+        cell_classification.value = result.classification.value
+        cell_classification.fill = PatternFill(
+            start_color=self.CLASSIFICATION_COLORS[result.classification],
+            end_color=self.CLASSIFICATION_COLORS[result.classification],
+            fill_type="solid"
+        )
+        cell_classification.alignment = Alignment(horizontal="center")
+
+        # 判断理由（確信度とフェーズ情報を含む）
+        cell_reason = ws.cell(row=row_num, column=reason_col)
+        cell_reason.value = f"{result.reason} (確信度: {result.confidence:.0%}, Phase: {result.phase})"
+        cell_reason.alignment = Alignment(wrap_text=True, vertical="top")
+
+    def _adjust_output_column_widths(
+        self,
+        ws,
+        classification_col: int,
+        reason_col: int
+    ) -> None:
+        """出力列の列幅を調整する。
+
+        Args:
+            ws: ワークシートオブジェクト
+            classification_col: 分類列の列番号
+            reason_col: 理由列の列番号
+        """
+        # 分類列
+        col_letter = ws.cell(row=1, column=classification_col).column_letter
+        ws.column_dimensions[col_letter].width = 12
+
+        # 理由列
+        col_letter = ws.cell(row=1, column=reason_col).column_letter
+        ws.column_dimensions[col_letter].width = 60
 
     def _add_headers(self, ws, last_col: int) -> None:
         """結果列のヘッダーを追加する。
@@ -283,7 +373,3 @@ class ExcelWriter:
 
         wb.save(self.output_file)
         logger.info(f"Summary sheet added to {self.output_file}")
-
-
-# 不足しているインポートを追加
-from typing import Optional

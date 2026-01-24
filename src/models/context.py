@@ -68,12 +68,11 @@ class RuleInfo:
         """
         hints_text = ""
         if self.false_positive_hints:
-            hints_text = "\n**誤検知の可能性があるケース**:\n"
+            hints_text = "\n**判定指針**:\n"
             hints_text += "\n".join(f"- {hint}" for hint in self.false_positive_hints)
 
-        return f"""**ルールID**: {self.rule_id}
-**タイトル**: {self.title}
-**カテゴリ**: {self.category}
+        return f"""**ルールクラス**: {self.rule_id}
+**説明**: {self.title}
 **根拠**: {self.rationale}{hints_text}"""
 
 

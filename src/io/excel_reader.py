@@ -16,15 +16,34 @@ class ExcelReader:
 
     # 各種Excel形式用の列名マッピング
     COLUMN_MAPPINGS: Dict[str, List[str]] = {
-        "file": ["File", "ファイル", "file", "FILE", "Source File", "SourceFile"],
-        "line": ["Line", "行", "line", "LINE", "Line Number", "LineNumber"],
-        "rule": ["Rule", "ルール", "rule", "RULE", "Rule ID", "RuleID", "Warning Class"],
-        "message": ["Message", "メッセージ", "message", "MESSAGE", "Description"],
-        "severity": ["Severity", "Priority", "重要度", "優先度", "severity", "priority"],
+        "file": [
+            "file path", "file_path", "File Path", "FilePath",  # カスタム形式優先
+            "File", "ファイル", "file", "FILE", "Source File", "SourceFile"
+        ],
+        "line": [
+            "line number", "line_number", "Line Number", "LineNumber",  # カスタム形式優先
+            "Line", "行", "line", "LINE"
+        ],
+        "rule": [
+            "Warning Class",  # CodeSonarのWarning Class（ルールDBマッチング用）
+            "categories", "Categories", "カテゴリ",
+            "Rule", "ルール", "rule", "RULE", "Rule ID", "RuleID"
+        ],
+        "message": [
+            "finding", "Finding", "指摘",  # カスタム形式優先
+            "Message", "メッセージ", "message", "MESSAGE", "Description"
+        ],
+        "severity": [
+            "priority", "Priority",  # カスタム形式優先
+            "Severity", "重要度", "優先度", "severity"
+        ],
         "procedure": [
             "Procedure", "Function", "関数", "procedure", "function",
             "Procedure/Function", "ProcedureFunction"
-        ]
+        ],
+        # カスタム形式専用オプション列
+        "original_id": ["id", "ID", "指摘ID"],
+        "line_content": ["line content", "line_content", "Line Content", "指摘行の内容"],
     }
 
     def __init__(
@@ -156,6 +175,17 @@ class ExcelReader:
             proc_value = row[self._column_map["procedure"]]
             if pd.notna(proc_value):
                 row_dict["Procedure"] = str(proc_value)
+
+        # カスタム形式のオプション列
+        if "original_id" in self._column_map:
+            orig_id = row[self._column_map["original_id"]]
+            if pd.notna(orig_id):
+                row_dict["OriginalId"] = str(orig_id)
+
+        if "line_content" in self._column_map:
+            content = row[self._column_map["line_content"]]
+            if pd.notna(content):
+                row_dict["LineContent"] = str(content)
 
         # Excelの行は1始まり、ヘッダー行も含む
         excel_row = row_index + 2
